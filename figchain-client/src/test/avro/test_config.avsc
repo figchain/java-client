@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "TestConfig",
+  "namespace": "io.figchain.client.test",
+  "fields": [
+    {"name": "someString", "type": "string"},
+    {"name": "someInt", "type": "int"}
+  ]
+}
