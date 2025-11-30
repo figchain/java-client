@@ -2,7 +2,9 @@
 
 Official Java client library for [FigChain](https://figchain.io) configuration management.
 
-![GitHub Release](https://img.shields.io/github/v/release/figchain/java-client)
+<a href="https://github.com/figchain/java-client/releases">
+    <img src="https://img.shields.io/github/v/release/figchain/java-client" alt="GitHub Release" />
+</a>
 
 ## Features
 
@@ -72,7 +74,7 @@ FcClient client = new FcClientBuilder()
 // Start the client
 client.start();
 
-// Evaluate a configuration
+// Evaluate a configuration (for traffic split support)
 EvaluationContext context = EvaluationContext.builder()
     .addAttribute("userId", "user123")
     .addAttribute("plan", "premium")
