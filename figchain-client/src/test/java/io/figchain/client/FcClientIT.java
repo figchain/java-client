@@ -21,13 +21,18 @@ import static org.junit.jupiter.api.Assertions.*;
  * This test requires the server to be running on localhost:8080.
  */
 public class FcClientIT {
+
     private static final Logger log = LoggerFactory.getLogger(FcClientIT.class);
+
+    private String getClientSecret() {
+        return System.getenv().getOrDefault("FIGCHAIN_CLIENT_SECRET", "dummy-secret");
+    }
 
     @Test
     public void testPollingTransport() throws Exception {
         FcClientBuilder builder = new FcClientBuilder();
         builder.withBaseUrl("http://localhost:8080/api");
-        builder.withClientSecret("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X2phdmFfY2xpZW50IiwidGVuYW50X2lkIjoidGVzdF90ZW5hbnRfaWQiLCJzY3AiOiJOQU1FU1BBQ0VfQUxMIiwiaWF0IjoxNzU5MDk5NjkzfQ.8-8IOG6_MgiRthZZc1vx8uEMZC5E5a-d4kC6-h7lGDs");
+        builder.withClientSecret(getClientSecret());
         builder.withNamespaces(Collections.singleton("namespace1"));
         builder.withEnvironmentId(java.util.UUID.fromString("0199738e-78ad-7194-9f50-7afa15cc8de9")); // Test environment ID
         builder.withFigStore(new MemoryFigStore());
@@ -85,7 +90,7 @@ public class FcClientIT {
         // Build the client with same configuration as your demo app
         FcClientBuilder builder = new FcClientBuilder();
         builder.withBaseUrl("http://localhost:8080/api");
-        builder.withClientSecret("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X2phdmFfY2xpZW50IiwidGVuYW50X2lkIjoidGVzdF90ZW5hbnRfaWQiLCJzY3AiOiJOQU1FU1BBQ0VfQUxMIiwiaWF0IjoxNzU5MDk5NjkzfQ.8-8IOG6_MgiRthZZc1vx8uEMZC5E5a-d4kC6-h7lGDs");
+        builder.withClientSecret(getClientSecret());
         builder.withNamespaces(Collections.singleton("namespace1"));
         builder.withEnvironmentId(java.util.UUID.fromString("0199738e-78ad-7194-9f50-7afa15cc8de9")); // Test environment ID
         builder.withFigStore(new MemoryFigStore());

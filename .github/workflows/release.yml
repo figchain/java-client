@@ -36,10 +36,20 @@ jobs:
       - name: Build and test
         run: mvn clean verify
 
-      - name: Publish to GitHub Packages
-        run: mvn deploy -DskipTests
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to FigChain Maven Repository
+        run: |
+          cat > ~/.m2/settings.xml << EOF
+          <settings>
+            <servers>
+              <server>
+                <id>figchain-public</id>
+                <username>fc-deploy</username>
+                <password>${{ secrets.MAVEN_REPO_TOKEN }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+          mvn deploy -DskipTests
 
       - name: Upload artifacts to release
         uses: softprops/action-gh-release@v1

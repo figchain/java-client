@@ -45,7 +45,7 @@ public class FcClientBuilder {
     private java.util.UUID environmentId;
     private HttpClient httpClient;
     private String clientSecret;
-    private Transport transport = Transport.POLLING;
+    private Transport transport = Transport.LONG_POLLING;
     private final List<FcUpdateListener> updateListeners = new ArrayList<>();
     private EvaluationContext defaultContext;
 
@@ -263,7 +263,7 @@ public class FcClientBuilder {
         }
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-        ExecutorService fetchExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        ExecutorService fetchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
         final FcClient fcClient = new FcClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, maxRetries, retryDelayMillis, environmentId, defaultContext);
         this.updateListeners.add(fcClient);
