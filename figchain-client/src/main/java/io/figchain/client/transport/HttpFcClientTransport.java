@@ -61,7 +61,17 @@ public class HttpFcClientTransport implements FcClientTransport {
             }
 
             if (response.statusCode() != 200) {
-                throw new IOException("Unexpected code " + response);
+                String errorMsg = "Unexpected code " + response.statusCode();
+                if (response.body() != null && response.body().length > 0) {
+                    try {
+                        String body = new String(response.body(), java.nio.charset.StandardCharsets.UTF_8);
+                        if (body.length() > 1000) body = body.substring(0, 1000) + "...";
+                        errorMsg += ". Body: " + body;
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
+                throw new FcTransportException(errorMsg, response.statusCode());
             }
             InitialFetchResponse initialResponse = AvroEncoding.deserializeWithSchema(response.body(), InitialFetchResponse.class);
 
@@ -130,7 +140,17 @@ public class HttpFcClientTransport implements FcClientTransport {
             }
 
             if (response.statusCode() != 200) {
-                throw new IOException("Unexpected code " + response);
+                String errorMsg = "Unexpected code " + response.statusCode();
+                if (response.body() != null && response.body().length > 0) {
+                    try {
+                        String body = new String(response.body(), java.nio.charset.StandardCharsets.UTF_8);
+                        if (body.length() > 1000) body = body.substring(0, 1000) + "...";
+                        errorMsg += ". Body: " + body;
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
+                throw new FcTransportException(errorMsg, response.statusCode());
             }
             // Response decoding already uses Avro container files
             UpdateFetchResponse updateResponse = AvroEncoding.deserializeWithSchema(response.body(), UpdateFetchResponse.class);

@@ -60,7 +60,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update README on main
+      - name: Update main branch
         if: success()
         run: |
           git fetch origin main
@@ -73,11 +73,33 @@ jobs:
           # Update Gradle dependency version
           sed -i "s/implementation 'io.figchain:figchain-client:.*'/implementation 'io.figchain:figchain-client:$VERSION'/" README.md
           
+          # Calculate next snapshot version
+          # Assumes semantic versioning X.Y.Z
+          IFS='.' read -r -a parts <<< "$VERSION"
+          NEXT_SNAPSHOT=""
+          if [ ${#parts[@]} -eq 3 ]; then
+            major="${parts[0]}"
+            minor="${parts[1]}"
+            patch="${parts[2]}"
+            next_patch=$((patch + 1))
+            NEXT_SNAPSHOT="$major.$minor.$next_patch-SNAPSHOT"
+            echo "Bumping version to $NEXT_SNAPSHOT"
+            
+            # Update pom.xml versions
+            mvn versions:set -DnewVersion=$NEXT_SNAPSHOT -DgenerateBackupPoms=false
+          else
+            echo "Could not parse version $VERSION for bumping. Skipping POM bump."
+          fi
+          
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          git add README.md
+          git add README.md pom.xml **/pom.xml
           if ! git diff --staged --quiet; then
-            git commit -m "Update README to version $VERSION [skip ci]"
+            COMMIT_MSG="Update README to $VERSION"
+            if [ ! -z "$NEXT_SNAPSHOT" ]; then
+              COMMIT_MSG="$COMMIT_MSG and bump to $NEXT_SNAPSHOT"
+            fi
+            git commit -m "$COMMIT_MSG [skip ci]"
             git push origin main
           fi

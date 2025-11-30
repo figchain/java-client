@@ -227,6 +227,22 @@ public class FcClient implements FcUpdateListener {
             try {
                 return task.call();
             } catch (Exception e) {
+                // Check for FcTransportException to avoid retrying on auth errors
+                io.figchain.client.transport.FcTransportException transportException = null;
+                if (e instanceof io.figchain.client.transport.FcTransportException) {
+                    transportException = (io.figchain.client.transport.FcTransportException) e;
+                } else if (e.getCause() instanceof io.figchain.client.transport.FcTransportException) {
+                    transportException = (io.figchain.client.transport.FcTransportException) e.getCause();
+                }
+
+                if (transportException != null) {
+                    int status = transportException.getStatusCode();
+                    if (status == 401 || status == 403) {
+                        log.error("Authentication/Authorization failed for {}: {}. Please check your client secret and permissions.", taskName, transportException.getMessage());
+                        throw transportException;
+                    }
+                }
+
                 attempts++;
                 if (attempts <= maxRetries) {
                     log.warn("Attempt {}/{} to {} failed. Retrying in {} ms. Error: {}", attempts, maxRetries, taskName,
