@@ -2,6 +2,8 @@
 
 Official Java client library for [FigChain](https://figchain.io) configuration management.
 
+![GitHub Release](https://img.shields.io/github/v/release/figchain/java-client)
+
 ## Features
 
 - **Real-time configuration updates** - Subscribe to configuration changes with long polling or fixed-rate strategies
