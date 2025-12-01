@@ -236,9 +236,15 @@ public class FcClient implements FcUpdateListener {
                 }
 
                 if (transportException != null) {
+                    if (transportException instanceof io.figchain.client.transport.FcAuthenticationException ||
+                        transportException instanceof io.figchain.client.transport.FcAuthorizationException) {
+                        log.error("Authentication/Authorization failed for {}: {}", taskName, transportException.getMessage());
+                        throw transportException;
+                    }
+
                     int status = transportException.getStatusCode();
                     if (status == 401 || status == 403) {
-                        log.error("Authentication/Authorization failed for {}: {}. Please check your client secret and permissions.", taskName, transportException.getMessage());
+                        log.error("Authentication/Authorization failed for {}: {}", taskName, transportException.getMessage());
                         throw transportException;
                     }
                 }

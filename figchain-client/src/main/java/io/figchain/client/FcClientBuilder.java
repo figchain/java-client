@@ -211,7 +211,7 @@ public class FcClientBuilder {
      */
     public FcClientBuilder fromYaml(String filePath) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        ClientConfiguration config = mapper.readValue(new File(filePath), ClientConfiguration.class);;
+        ClientConfiguration config = mapper.readValue(new File(filePath), ClientConfiguration.class);
         if (config.getBaseUrl() != null) {
             this.baseUrl = config.getBaseUrl();
         }
