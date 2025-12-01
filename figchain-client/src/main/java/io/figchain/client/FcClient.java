@@ -5,6 +5,9 @@ import io.figchain.avro.model.Fig;
 import org.apache.avro.specific.SpecificRecord;
 import io.figchain.client.store.FigStore;
 import io.figchain.client.transport.FcClientTransport;
+import io.figchain.client.transport.FcAuthenticationException;
+import io.figchain.client.transport.FcAuthorizationException;
+import io.figchain.client.transport.FcTransportException;
 import io.figchain.avro.model.InitialFetchResponse;
 import io.figchain.avro.model.InitialFetchRequest;
 import org.slf4j.Logger;
@@ -228,22 +231,16 @@ public class FcClient implements FcUpdateListener {
                 return task.call();
             } catch (Exception e) {
                 // Check for FcTransportException to avoid retrying on auth errors
-                io.figchain.client.transport.FcTransportException transportException = null;
-                if (e instanceof io.figchain.client.transport.FcTransportException) {
-                    transportException = (io.figchain.client.transport.FcTransportException) e;
-                } else if (e.getCause() instanceof io.figchain.client.transport.FcTransportException) {
-                    transportException = (io.figchain.client.transport.FcTransportException) e.getCause();
+                FcTransportException transportException = null;
+                if (e instanceof FcTransportException) {
+                    transportException = (FcTransportException) e;
+                } else if (e.getCause() instanceof FcTransportException) {
+                    transportException = (FcTransportException) e.getCause();
                 }
 
                 if (transportException != null) {
-                    if (transportException instanceof io.figchain.client.transport.FcAuthenticationException ||
-                        transportException instanceof io.figchain.client.transport.FcAuthorizationException) {
-                        log.error("Authentication/Authorization failed for {}: {}", taskName, transportException.getMessage());
-                        throw transportException;
-                    }
-
-                    int status = transportException.getStatusCode();
-                    if (status == 401 || status == 403) {
+                    if (transportException instanceof FcAuthenticationException ||
+                        transportException instanceof FcAuthorizationException) {
                         log.error("Authentication/Authorization failed for {}: {}", taskName, transportException.getMessage());
                         throw transportException;
                     }
