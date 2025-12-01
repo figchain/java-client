@@ -26,6 +26,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.function.Consumer;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The main client for interacting with the FigChain service.
@@ -45,16 +48,6 @@ import io.figchain.client.polling.PollingStrategy;
  * to retrieve evaluated
  * figs based on keys and evaluation contexts.
  * </p>
- *
- * <h2>Usage</h2>
- * 
- * <pre>{@code
- * FcClient client = new FcClient(...);
- * client.setPollingStrategy(...);
- * client.start();
- * Optional<Fig> fig = client.getFig("namespace", "key", context);
- * client.stop();
- * }</pre>
  *
  * <h2>Thread Safety</h2>
  * <p>
@@ -88,6 +81,7 @@ import io.figchain.client.polling.PollingStrategy;
  * @see EvaluationContext
  */
 public class FcClient implements FcUpdateListener {
+
     private static final Logger log = LoggerFactory.getLogger(FcClient.class);
 
     private final FigStore figStore;
@@ -104,6 +98,19 @@ public class FcClient implements FcUpdateListener {
     private PollingStrategy pollingStrategy;
     private final CountDownLatch initialFetchLatch = new CountDownLatch(1);
     private final AtomicBoolean started = new AtomicBoolean(false);
+    private final Map<String, List<TypedListener<?>>> typedListeners = new ConcurrentHashMap<>();
+
+    private static class TypedListener<T extends SpecificRecord> {
+        final Class<T> clazz;
+        final EvaluationContext context;
+        final Consumer<? super T> listener;
+
+        TypedListener(Class<T> clazz, EvaluationContext context, Consumer<? super T> listener) {
+            this.clazz = clazz;
+            this.context = context;
+            this.listener = listener;
+        }
+    }
 
     public FcClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor, int maxRetries,
@@ -218,9 +225,37 @@ public class FcClient implements FcUpdateListener {
             log.debug("Updating fig store with {} new/updated fig families.", figFamilies.size());
             for (io.figchain.avro.model.FigFamily figFamily : figFamilies) {
                 figStore.put(figFamily);
+                notifyTypedListeners(figFamily);
             }
         } else {
             log.debug("No fig families to update in the store.");
+        }
+    }
+
+    private void notifyTypedListeners(io.figchain.avro.model.FigFamily figFamily) {
+        String namespace = figFamily.getDefinition().getNamespace().toString();
+        String key = figFamily.getDefinition().getKey().toString();
+        String lookupKey = namespace + ":" + key;
+
+        List<TypedListener<?>> listeners = typedListeners.get(lookupKey);
+        if (listeners != null) {
+            for (TypedListener<?> listener : listeners) {
+                notifyListener(figFamily, listener);
+            }
+        }
+    }
+
+    private <T extends SpecificRecord> void notifyListener(io.figchain.avro.model.FigFamily figFamily, TypedListener<T> listener) {
+        try {
+            EvaluationContext effectiveContext = (defaultContext != null) ? defaultContext.merge(listener.context) : (listener.context != null ? listener.context : new EvaluationContext());
+            Optional<Fig> fig = rolloutEvaluator.evaluate(figFamily, effectiveContext);
+            if (fig.isPresent()) {
+                byte[] bytes = toByteArray(fig.get().getPayload());
+                T decoded = AvroEncoding.deserializeBinary(bytes, listener.clazz);
+                listener.listener.accept(decoded);
+            }
+        } catch (IOException | RuntimeException e) {
+            log.error("Failed to notify listener for key: {}", figFamily.getDefinition().getKey(), e);
         }
     }
 
@@ -317,18 +352,38 @@ public class FcClient implements FcUpdateListener {
         Optional<Fig> fig = getFig(key, context);
         if (fig.isPresent()) {
             try {
-                ByteBuffer buffer = fig.get().getPayload();
-                // Duplicate to avoid modifying the original buffer's position
-                ByteBuffer duplicate = buffer.duplicate();
-                byte[] bytes = new byte[duplicate.remaining()];
-                duplicate.get(bytes);
-                return Optional.of(AvroEncoding.deserializeWithSchema(bytes, clazz));
+                byte[] bytes = toByteArray(fig.get().getPayload());
+                return Optional.of(AvroEncoding.deserializeBinary(bytes, clazz));
             } catch (IOException e) {
                 log.error("Failed to deserialize fig for key: {}", key, e);
                 return Optional.empty();
             }
         }
         return Optional.empty();
+    }
+
+    public <T extends SpecificRecord> void registerListener(String key, Class<T> clazz, Consumer<? super T> listener) {
+        if (namespaces.size() != 1) {
+            throw new IllegalStateException("Multiple namespaces configured; use registerListener(namespace, key, clazz, listener)");
+        }
+        registerListener(namespaces.iterator().next(), key, null, clazz, listener);
+    }
+
+    public <T extends SpecificRecord> void registerListener(String key, EvaluationContext context, Class<T> clazz, Consumer<? super T> listener) {
+        if (namespaces.size() != 1) {
+            throw new IllegalStateException("Multiple namespaces configured; use registerListener(namespace, key, context, clazz, listener)");
+        }
+        registerListener(namespaces.iterator().next(), key, context, clazz, listener);
+    }
+
+    public <T extends SpecificRecord> void registerListener(String namespace, String key, Class<T> clazz, Consumer<? super T> listener) {
+        registerListener(namespace, key, null, clazz, listener);
+    }
+
+    public <T extends SpecificRecord> void registerListener(String namespace, String key, EvaluationContext context, Class<T> clazz, Consumer<? super T> listener) {
+        String lookupKey = namespace + ":" + key;
+        typedListeners.computeIfAbsent(lookupKey, k -> new CopyOnWriteArrayList<>())
+                .add(new TypedListener<>(clazz, context, listener));
     }
 
     private void awaitInitialFetch() {
@@ -383,5 +438,13 @@ public class FcClient implements FcUpdateListener {
     // For testing only: allow tests to release the latch so getFig() does not block
     void _testReleaseInitialFetchLatch() {
         initialFetchLatch.countDown();
+    }
+
+    private byte[] toByteArray(ByteBuffer buffer) {
+        // Duplicate to avoid modifying the original buffer's position
+        ByteBuffer duplicate = buffer.duplicate();
+        byte[] bytes = new byte[duplicate.remaining()];
+        duplicate.get(bytes);
+        return bytes;
     }
 }

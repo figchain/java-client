@@ -47,7 +47,7 @@ public class FcClientBuilder {
     private String clientSecret;
     private Transport transport = Transport.LONG_POLLING;
     private final List<FcUpdateListener> updateListeners = new ArrayList<>();
-    private EvaluationContext defaultContext;
+    private EvaluationContext defaultContext = new EvaluationContext();
 
     /**
      * Sets the default evaluation context to use for getFig overloads.

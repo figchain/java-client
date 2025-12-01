@@ -31,4 +31,23 @@ class AvroEncodingTest {
         assertEquals(request.getCursor().toString(), deserialized.getCursor().toString());
         assertEquals(request.getEnvironmentId(), deserialized.getEnvironmentId());
     }
+
+    @Test
+    void testSerializeBinary() throws IOException {
+        UUID environmentId = UUID.randomUUID();
+
+        UpdateFetchRequest request = UpdateFetchRequest.newBuilder()
+            .setNamespace("test-namespace-binary")
+            .setCursor("test-cursor-binary")
+            .setEnvironmentId(environmentId)
+            .build();
+
+        byte[] serialized = AvroEncoding.serializeBinary(request);
+        assertNotNull(serialized);
+
+        UpdateFetchRequest deserialized = AvroEncoding.deserializeBinary(serialized, UpdateFetchRequest.class);
+        assertEquals(request.getNamespace().toString(), deserialized.getNamespace().toString());
+        assertEquals(request.getCursor().toString(), deserialized.getCursor().toString());
+        assertEquals(request.getEnvironmentId(), deserialized.getEnvironmentId());
+    }
 }

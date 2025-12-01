@@ -62,7 +62,7 @@ public class LongPollingFcClientTransport extends HttpFcClientTransport {
                 byte[] avroBytes = AvroEncoding.serializeWithSchema(request);
 
                 HttpRequest httpRequest = HttpRequest.newBuilder()
-                        .uri(this.longPollingBaseUrl.resolve("/data/updates"))
+                        .uri(this.longPollingBaseUrl.resolve("data/updates"))
                         .header("Authorization", authHeaderValue())
                         .header("Content-Type", "application/octet-stream")
                         .header("X-Long-Poll-Timeout", String.valueOf(longPollingTimeout.toSeconds()))

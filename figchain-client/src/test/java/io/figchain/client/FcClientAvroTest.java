@@ -65,7 +65,7 @@ class FcClientAvroTest {
                 .setSomeInt(42)
                 .build();
 
-        byte[] payload = AvroEncoding.serializeWithSchema(testConfig);
+        byte[] payload = AvroEncoding.serializeBinary(testConfig);
         Fig fig = Fig.newBuilder()
                 .setFigId(UUID.randomUUID())
                 .setVersion(UUID.randomUUID())
