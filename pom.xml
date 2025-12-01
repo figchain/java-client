@@ -6,7 +6,7 @@
 
     <groupId>io.figchain</groupId>
     <artifactId>java-client-parent</artifactId>
-    <version>1.0.3-SNAPSHOT</version>
+    <version>1.0.4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>FigChain Java Client</name>
