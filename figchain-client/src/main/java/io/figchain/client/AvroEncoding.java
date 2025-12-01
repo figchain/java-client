@@ -9,6 +9,15 @@ import java.io.IOException;
 
 public class AvroEncoding {
 
+    public static <T extends SpecificRecord> byte[] serializeBinary(T record) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        org.apache.avro.io.BinaryEncoder encoder = org.apache.avro.io.EncoderFactory.get().binaryEncoder(out, null);
+        DatumWriter<T> writer = new SpecificDatumWriter<>(record.getSchema());
+        writer.write(record, encoder);
+        encoder.flush();
+        return out.toByteArray();
+    }
+
     public static <T extends SpecificRecord> byte[] serializeWithSchema(T record) throws IOException {
         DatumWriter<T> writer = new SpecificDatumWriter<>(record.getSchema());
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -28,5 +37,11 @@ public class AvroEncoding {
                 throw new IOException("No Avro data found in container file");
             }
         }
+    }
+
+    public static <T extends SpecificRecord> T deserializeBinary(byte[] data, Class<T> clazz) throws IOException {
+        org.apache.avro.io.DatumReader<T> reader = new org.apache.avro.specific.SpecificDatumReader<>(clazz);
+        org.apache.avro.io.Decoder decoder = org.apache.avro.io.DecoderFactory.get().binaryDecoder(data, null);
+        return reader.read(null, decoder);
     }
 }

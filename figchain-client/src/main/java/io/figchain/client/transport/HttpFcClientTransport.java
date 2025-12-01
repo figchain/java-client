@@ -115,7 +115,7 @@ public class HttpFcClientTransport implements FcClientTransport {
             byte[] avroBytes = AvroEncoding.serializeWithSchema(request);
 
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(this.baseUrl.resolve("/data/updates"))
+                    .uri(this.baseUrl.resolve("data/updates"))
                     .header("Authorization", authHeaderValue())
                     .header("Content-Type", "application/octet-stream")
                     .POST(HttpRequest.BodyPublishers.ofByteArray(avroBytes))

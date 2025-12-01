@@ -65,7 +65,9 @@ public class FixedRatePollingStrategy implements PollingStrategy {
             }
             try {
                 UpdateFetchResponse response = fcClientTransport.fetchUpdates(namespace, cursor);
-                updateListener.onUpdate(response.getFigFamilies());
+                if (response.getFigFamilies() != null && !response.getFigFamilies().isEmpty()) {
+                    updateListener.onUpdate(response.getFigFamilies());
+                }
                 namespaceCursors.put(namespace, response.getCursor().toString());
                 log.debug("Successfully fetched updates for namespace {}. New cursor: {}", namespace, response.getCursor());
             } catch (Exception e) {
