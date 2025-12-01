@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-class FcClientTypedListenerTest {
+class FigChainClientTypedListenerTest {
 
     @Mock
     FigStore mockFigStore;
@@ -37,7 +37,7 @@ class FcClientTypedListenerTest {
     @Mock
     ExecutorService mockFetchExecutor;
 
-    private FcClient fcClient;
+    private FigChainClient fcClient;
     private Set<String> testNamespaces;
 
     @BeforeEach
@@ -46,7 +46,7 @@ class FcClientTypedListenerTest {
         testNamespaces = new HashSet<>();
         testNamespaces.add("test-namespace");
 
-        fcClient = new FcClient(
+        fcClient = new FigChainClient(
                 mockFigStore,
                 mockRolloutEvaluator,
                 mockFcClientTransport,

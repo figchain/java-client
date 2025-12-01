@@ -37,7 +37,7 @@ import io.figchain.client.polling.PollingStrategy;
 import io.figchain.client.store.FigStore;
 import io.figchain.client.transport.FcClientTransport;
 
-class FcClientTest {
+class FigChainClientTest {
 
     @Mock
     FigStore mockFigStore;
@@ -54,7 +54,7 @@ class FcClientTest {
     @Mock
     PollingStrategy mockPollingStrategy;
 
-    private FcClient fcClient;
+    private FigChainClient fcClient;
     private Set<String> testNamespaces;
     private EvaluationContext defaultContext;
 
@@ -83,7 +83,7 @@ class FcClientTest {
             });
         }).when(mockFetchExecutor).submit(any(Callable.class));
 
-        fcClient = new FcClient(
+        fcClient = new FigChainClient(
                 mockFigStore,
                 mockRolloutEvaluator,
                 mockFcClientTransport,
@@ -190,7 +190,7 @@ class FcClientTest {
     @Test
     void testFcClientThrowsExceptionIfNoNamespaces() {
         assertThrows(IllegalArgumentException.class, () -> {
-            new FcClient(mockFigStore, mockRolloutEvaluator, mockFcClientTransport, null, Collections.emptySet(), mockFetchExecutor, 3, 100L, java.util.UUID.randomUUID());
+            new FigChainClient(mockFigStore, mockRolloutEvaluator, mockFcClientTransport, null, Collections.emptySet(), mockFetchExecutor, 3, 100L, java.util.UUID.randomUUID());
         });
     }
 

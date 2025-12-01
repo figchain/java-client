@@ -80,9 +80,9 @@ import io.figchain.client.polling.PollingStrategy;
  * @see PollingStrategy
  * @see EvaluationContext
  */
-public class FcClient implements FcUpdateListener {
+public class FigChainClient implements FcUpdateListener {
 
-    private static final Logger log = LoggerFactory.getLogger(FcClient.class);
+    private static final Logger log = LoggerFactory.getLogger(FigChainClient.class);
 
     private final FigStore figStore;
     private final RolloutEvaluator rolloutEvaluator;
@@ -112,14 +112,14 @@ public class FcClient implements FcUpdateListener {
         }
     }
 
-    public FcClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
+    public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor, int maxRetries,
             long retryDelayMillis, java.util.UUID environmentId) {
         this(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, maxRetries,
                 retryDelayMillis, environmentId, null);
     }
 
-    public FcClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
+    public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor, int maxRetries,
             long retryDelayMillis, java.util.UUID environmentId, EvaluationContext defaultContext) {
         if (namespaces == null || namespaces.isEmpty()) {

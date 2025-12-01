@@ -29,9 +29,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ExecutorService;
 
 /**
- * A builder for creating {@link FcClient} instances.
+ * A builder for creating {@link FigChainClient} instances.
  */
-public class FcClientBuilder {
+public class FigChainClientBuilder {
 
     private FigStore figStore;
     private RolloutEvaluator rolloutEvaluator;
@@ -55,7 +55,7 @@ public class FcClientBuilder {
      * @param context the default context
      * @return this builder
      */
-    public FcClientBuilder withDefaultContext(EvaluationContext context) {
+    public FigChainClientBuilder withDefaultContext(EvaluationContext context) {
         this.defaultContext = context;
         return this;
     }
@@ -66,7 +66,7 @@ public class FcClientBuilder {
      * @param figStore the fig store
      * @return this builder
      */
-    public FcClientBuilder withFigStore(FigStore figStore) {
+    public FigChainClientBuilder withFigStore(FigStore figStore) {
         this.figStore = figStore;
         return this;
     }
@@ -77,7 +77,7 @@ public class FcClientBuilder {
      * @param rolloutEvaluator the rollout evaluator
      * @return this builder
      */
-    public FcClientBuilder withRolloutEvaluator(RolloutEvaluator rolloutEvaluator) {
+    public FigChainClientBuilder withRolloutEvaluator(RolloutEvaluator rolloutEvaluator) {
         this.rolloutEvaluator = rolloutEvaluator;
         return this;
     }
@@ -88,7 +88,7 @@ public class FcClientBuilder {
      * @param baseUrl the base URL
      * @return this builder
      */
-    public FcClientBuilder withBaseUrl(String baseUrl) {
+    public FigChainClientBuilder withBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
         return this;
     }
@@ -99,7 +99,7 @@ public class FcClientBuilder {
      * @param longPollingBaseUrl the long polling base URL
      * @return this builder
      */
-    public FcClientBuilder withLongPollingBaseUrl(String longPollingBaseUrl) {
+    public FigChainClientBuilder withLongPollingBaseUrl(String longPollingBaseUrl) {
         this.longPollingBaseUrl = longPollingBaseUrl;
         return this;
     }
@@ -110,7 +110,7 @@ public class FcClientBuilder {
      * @param pollingInterval the polling interval
      * @return this builder
      */
-    public FcClientBuilder withPollingInterval(long pollingInterval) {
+    public FigChainClientBuilder withPollingInterval(long pollingInterval) {
         this.pollingInterval = pollingInterval;
         return this;
     }
@@ -121,7 +121,7 @@ public class FcClientBuilder {
      * @param maxRetries the maximum number of retries
      * @return this builder
      */
-    public FcClientBuilder withMaxRetries(int maxRetries) {
+    public FigChainClientBuilder withMaxRetries(int maxRetries) {
         this.maxRetries = maxRetries;
         return this;
     }
@@ -132,7 +132,7 @@ public class FcClientBuilder {
      * @param retryDelayMillis the retry delay in milliseconds
      * @return this builder
      */
-    public FcClientBuilder withRetryDelayMillis(long retryDelayMillis) {
+    public FigChainClientBuilder withRetryDelayMillis(long retryDelayMillis) {
         this.retryDelayMillis = retryDelayMillis;
         return this;
     }
@@ -143,7 +143,7 @@ public class FcClientBuilder {
      * @param asOfTimestamp the as-of timestamp
      * @return this builder
      */
-    public FcClientBuilder withAsOfTimestamp(String asOfTimestamp) {
+    public FigChainClientBuilder withAsOfTimestamp(String asOfTimestamp) {
         this.asOfTimestamp = asOfTimestamp;
         return this;
     }
@@ -154,7 +154,7 @@ public class FcClientBuilder {
      * @param namespaces the set of namespaces
      * @return this builder
      */
-    public FcClientBuilder withNamespaces(Set<String> namespaces) {
+    public FigChainClientBuilder withNamespaces(Set<String> namespaces) {
         this.namespaces = new HashSet<>(namespaces);
         return this;
     }
@@ -165,7 +165,7 @@ public class FcClientBuilder {
      * @param environmentId the environment ID
      * @return this builder
      */
-    public FcClientBuilder withEnvironmentId(java.util.UUID environmentId) {
+    public FigChainClientBuilder withEnvironmentId(java.util.UUID environmentId) {
         this.environmentId = environmentId;
         return this;
     }
@@ -176,7 +176,7 @@ public class FcClientBuilder {
      * @param httpClient the OkHttpClient instance
      * @return this builder
      */
-    public FcClientBuilder withHttpClient(HttpClient httpClient) {
+    public FigChainClientBuilder withHttpClient(HttpClient httpClient) {
         this.httpClient = httpClient;
         return this;
     }
@@ -187,17 +187,17 @@ public class FcClientBuilder {
      * @param clientSecret the client secret
      * @return this builder
      */
-    public FcClientBuilder withClientSecret(String clientSecret) {
+    public FigChainClientBuilder withClientSecret(String clientSecret) {
         this.clientSecret = clientSecret;
         return this;
     }
 
-    public FcClientBuilder withTransport(Transport transport) {
+    public FigChainClientBuilder withTransport(Transport transport) {
         this.transport = transport;
         return this;
     }
 
-    public FcClientBuilder withUpdateListener(FcUpdateListener listener) {
+    public FigChainClientBuilder withUpdateListener(FcUpdateListener listener) {
         this.updateListeners.add(listener);
         return this;
     }
@@ -209,7 +209,7 @@ public class FcClientBuilder {
      * @return this builder
      * @throws IOException if the file cannot be read
      */
-    public FcClientBuilder fromYaml(String filePath) throws IOException {
+    public FigChainClientBuilder fromYaml(String filePath) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         ClientConfiguration config = mapper.readValue(new File(filePath), ClientConfiguration.class);
         if (config.getBaseUrl() != null) {
@@ -231,11 +231,11 @@ public class FcClientBuilder {
     }
 
     /**
-     * Builds a new {@link FcClient} instance.
+     * Builds a new {@link FigChainClient} instance.
      *
      * @return a new client
      */
-    public FcClient build() {
+    public FigChainClient build() {
         if (baseUrl == null) {
             throw new IllegalStateException("baseUrl must be set");
         } if (environmentId == null) {
@@ -265,7 +265,7 @@ public class FcClientBuilder {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         ExecutorService fetchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-        final FcClient fcClient = new FcClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, maxRetries, retryDelayMillis, environmentId, defaultContext);
+        final FigChainClient fcClient = new FigChainClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, maxRetries, retryDelayMillis, environmentId, defaultContext);
         this.updateListeners.add(fcClient);
         final FcUpdateListener broadcastListener = new BroadcastFcUpdateListener(this.updateListeners);
 

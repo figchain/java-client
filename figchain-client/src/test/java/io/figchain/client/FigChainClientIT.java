@@ -20,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * Integration test for FcClient using the Avro endpoints.
  * This test requires the server to be running on localhost:8080.
  */
-public class FcClientIT {
+public class FigChainClientIT {
 
-    private static final Logger log = LoggerFactory.getLogger(FcClientIT.class);
+    private static final Logger log = LoggerFactory.getLogger(FigChainClientIT.class);
 
     private String getClientSecret() {
         return System.getenv().getOrDefault("FIGCHAIN_CLIENT_SECRET", "dummy-secret");
@@ -30,7 +30,7 @@ public class FcClientIT {
 
     @Test
     public void testPollingTransport() throws Exception {
-        FcClientBuilder builder = new FcClientBuilder();
+        FigChainClientBuilder builder = new FigChainClientBuilder();
         builder.withBaseUrl("http://localhost:8080/api");
         builder.withClientSecret(getClientSecret());
         builder.withNamespaces(Collections.singleton("namespace1"));
@@ -55,7 +55,7 @@ public class FcClientIT {
                 latch.countDown();
             });
 
-            FcClient client = builder.build();
+            FigChainClient client = builder.build();
 
             log.info("Starting client...");
             // Block until the initial fetch is complete to avoid race conditions in the test.
@@ -88,7 +88,7 @@ public class FcClientIT {
         log.info("Starting long polling transport integration test");
 
         // Build the client with same configuration as your demo app
-        FcClientBuilder builder = new FcClientBuilder();
+        FigChainClientBuilder builder = new FigChainClientBuilder();
         builder.withBaseUrl("http://localhost:8080/api");
         builder.withClientSecret(getClientSecret());
         builder.withNamespaces(Collections.singleton("namespace1"));
@@ -113,7 +113,7 @@ public class FcClientIT {
                 latch.countDown();
             });
 
-            FcClient client = builder.build();
+            FigChainClient client = builder.build();
 
             log.info("Starting client...");
             // Block until the initial fetch is complete to avoid race conditions in the test.

@@ -28,7 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class FcClientAvroTest {
+class FigChainClientAvroTest {
 
     @Mock
     private FigStore figStore;
@@ -37,12 +37,12 @@ class FcClientAvroTest {
     @Mock
     private FcClientTransport fcClientTransport;
 
-    private FcClient fcClient;
+    private FigChainClient fcClient;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     @BeforeEach
     void setUp() {
-        fcClient = new FcClient(
+        fcClient = new FigChainClient(
                 figStore,
                 rolloutEvaluator,
                 fcClientTransport,
