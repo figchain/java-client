@@ -247,17 +247,14 @@ public class FcClient implements FcUpdateListener {
 
     private <T extends SpecificRecord> void notifyListener(io.figchain.avro.model.FigFamily figFamily, TypedListener<T> listener) {
         try {
-            EvaluationContext effectiveContext = (defaultContext != null) ? defaultContext.merge(listener.context) : listener.context;
+            EvaluationContext effectiveContext = (defaultContext != null) ? defaultContext.merge(listener.context) : (listener.context != null ? listener.context : new EvaluationContext());
             Optional<Fig> fig = rolloutEvaluator.evaluate(figFamily, effectiveContext);
             if (fig.isPresent()) {
-                ByteBuffer buffer = fig.get().getPayload();
-                ByteBuffer duplicate = buffer.duplicate();
-                byte[] bytes = new byte[duplicate.remaining()];
-                duplicate.get(bytes);
+                byte[] bytes = toByteArray(fig.get().getPayload());
                 T decoded = AvroEncoding.deserializeBinary(bytes, listener.clazz);
                 listener.listener.accept(decoded);
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             log.error("Failed to notify listener for key: {}", figFamily.getDefinition().getKey(), e);
         }
     }
@@ -355,11 +352,7 @@ public class FcClient implements FcUpdateListener {
         Optional<Fig> fig = getFig(key, context);
         if (fig.isPresent()) {
             try {
-                ByteBuffer buffer = fig.get().getPayload();
-                // Duplicate to avoid modifying the original buffer's position
-                ByteBuffer duplicate = buffer.duplicate();
-                byte[] bytes = new byte[duplicate.remaining()];
-                duplicate.get(bytes);
+                byte[] bytes = toByteArray(fig.get().getPayload());
                 return Optional.of(AvroEncoding.deserializeBinary(bytes, clazz));
             } catch (IOException e) {
                 log.error("Failed to deserialize fig for key: {}", key, e);
@@ -445,5 +438,13 @@ public class FcClient implements FcUpdateListener {
     // For testing only: allow tests to release the latch so getFig() does not block
     void _testReleaseInitialFetchLatch() {
         initialFetchLatch.countDown();
+    }
+
+    private byte[] toByteArray(ByteBuffer buffer) {
+        // Duplicate to avoid modifying the original buffer's position
+        ByteBuffer duplicate = buffer.duplicate();
+        byte[] bytes = new byte[duplicate.remaining()];
+        duplicate.get(bytes);
+        return bytes;
     }
 }
