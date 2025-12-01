@@ -65,9 +65,9 @@ public class HttpFcClientTransport implements FcClientTransport {
                 if (response.body() != null && response.body().length > 0) {
                     try {
                         bodyString = new String(response.body(), java.nio.charset.StandardCharsets.UTF_8);
-                    } catch (Exception e) {
-                        // ignore
-                    }
+} catch (Exception e) {
+    log.warn("Failed to decode response body to string", e);
+}
                 }
 
                 if (response.statusCode() == 401) {
