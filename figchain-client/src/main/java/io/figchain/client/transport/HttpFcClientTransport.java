@@ -61,17 +61,7 @@ public class HttpFcClientTransport implements FcClientTransport {
             }
 
             if (response.statusCode() != 200) {
-                String errorMsg = "Unexpected code " + response.statusCode();
-                if (response.body() != null && response.body().length > 0) {
-                    try {
-                        String body = new String(response.body(), java.nio.charset.StandardCharsets.UTF_8);
-                        if (body.length() > 1000) body = body.substring(0, 1000) + "...";
-                        errorMsg += ". Body: " + body;
-                    } catch (Exception e) {
-                        // ignore
-                    }
-                }
-                throw new FcTransportException(errorMsg, response.statusCode());
+                handleNon200Response(response);
             }
             InitialFetchResponse initialResponse = AvroEncoding.deserializeWithSchema(response.body(), InitialFetchResponse.class);
 
@@ -84,7 +74,7 @@ public class HttpFcClientTransport implements FcClientTransport {
             return initialResponse;
         } catch (IOException e) {
             log.error("Failed to fetch initial data", e);
-            throw new RuntimeException(e);
+            throw new FcNetworkException("Failed to fetch initial data", e);
         } catch (InterruptedException ex) {
             log.info("Client interrupted");
             throw new RuntimeException("Client interrupted", ex);
@@ -140,17 +130,7 @@ public class HttpFcClientTransport implements FcClientTransport {
             }
 
             if (response.statusCode() != 200) {
-                String errorMsg = "Unexpected code " + response.statusCode();
-                if (response.body() != null && response.body().length > 0) {
-                    try {
-                        String body = new String(response.body(), java.nio.charset.StandardCharsets.UTF_8);
-                        if (body.length() > 1000) body = body.substring(0, 1000) + "...";
-                        errorMsg += ". Body: " + body;
-                    } catch (Exception e) {
-                        // ignore
-                    }
-                }
-                throw new FcTransportException(errorMsg, response.statusCode());
+                handleNon200Response(response);
             }
             // Response decoding already uses Avro container files
             UpdateFetchResponse updateResponse = AvroEncoding.deserializeWithSchema(response.body(), UpdateFetchResponse.class);
@@ -164,11 +144,38 @@ public class HttpFcClientTransport implements FcClientTransport {
             return updateResponse;
         } catch (IOException e) {
             log.error("Failed to fetch updates", e);
-            throw new RuntimeException(e);
+            throw new FcNetworkException("Failed to fetch updates", e);
         } catch (InterruptedException ex) {
             log.info("Client interrupted");
             throw new RuntimeException("Client interrupted", ex);
         }
+    }
+
+    private void handleNon200Response(HttpResponse<byte[]> response) {
+        String bodyString = null;
+        if (response.body() != null && response.body().length > 0) {
+            try {
+                bodyString = new String(response.body(), java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                log.warn("Failed to decode response body to string", e);
+            }
+        }
+
+        if (response.statusCode() == 401) {
+            throw new FcAuthenticationException("Authentication failed. Please check your client secret.", bodyString);
+        } else if (response.statusCode() == 403) {
+            throw new FcAuthorizationException("Authorization failed. Please check that your environmentId, namespace, and client secret are correct.", bodyString);
+        }
+
+        String errorMsg = "Unexpected code " + response.statusCode();
+        if (bodyString != null) {
+            if (bodyString.length() > 1000) {
+                errorMsg += ". Body: " + bodyString.substring(0, 1000) + "...";
+            } else {
+                errorMsg += ". Body: " + bodyString;
+            }
+        }
+        throw new FcTransportException(errorMsg, response.statusCode(), bodyString);
     }
 
     @Override

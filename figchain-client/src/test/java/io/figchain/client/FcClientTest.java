@@ -264,20 +264,19 @@ class FcClientTest {
 
     @Test
     void testFetchInitialDataNoRetryOnAuthError() {
-        // Configure mockFcClientTransport to throw FcTransportException with 401
+        // Configure mockFcClientTransport to throw FcAuthenticationException
         when(mockFcClientTransport.fetchInitial(eq("test-namespace"), any(java.util.UUID.class), nullable(Instant.class)))
-            .thenThrow(new io.figchain.client.transport.FcTransportException("Unauthorized", 401));
+            .thenThrow(new io.figchain.client.transport.FcAuthenticationException("Unauthorized", null));
 
         // start() returns a CompletableFuture. We expect it to complete exceptionally.
         CompletableFuture<Void> future = fcClient.start();
 
-        // Verify that it throws ExecutionException wrapping FcTransportException
+        // Verify that it throws ExecutionException wrapping FcAuthenticationException
         java.util.concurrent.ExecutionException exception = assertThrows(java.util.concurrent.ExecutionException.class, () -> {
             future.get();
         });
 
-        assertTrue(exception.getCause() instanceof io.figchain.client.transport.FcTransportException);
-        assertEquals(401, ((io.figchain.client.transport.FcTransportException) exception.getCause()).getStatusCode());
+        assertTrue(exception.getCause() instanceof io.figchain.client.transport.FcAuthenticationException);
 
         // Verify that fetchInitial was called only once
         verify(mockFcClientTransport, times(1)).fetchInitial(eq("test-namespace"), any(java.util.UUID.class), nullable(Instant.class));
