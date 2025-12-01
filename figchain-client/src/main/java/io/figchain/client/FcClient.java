@@ -28,8 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.function.Consumer;
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The main client for interacting with the FigChain service.
@@ -390,7 +389,7 @@ public class FcClient implements FcUpdateListener {
 
     public <T extends SpecificRecord> void registerListener(String namespace, String key, EvaluationContext context, Class<T> clazz, Consumer<? super T> listener) {
         String lookupKey = namespace + ":" + key;
-        typedListeners.computeIfAbsent(lookupKey, k -> Collections.synchronizedList(new ArrayList<>()))
+        typedListeners.computeIfAbsent(lookupKey, k -> new CopyOnWriteArrayList<>())
                 .add(new TypedListener<>(clazz, context, listener));
     }
 
