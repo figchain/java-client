@@ -60,6 +60,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Reset any changes before checkout
+        run: |
+          git reset --hard HEAD
+          git clean -fd
+
       - name: Update main branch
         if: success()
         run: |
