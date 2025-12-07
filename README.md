@@ -35,7 +35,7 @@ Add the dependency:
 <dependency>
     <groupId>io.figchain</groupId>
     <artifactId>figchain-client</artifactId>
-    <version>1.0.5</version>
+    <version>1.0.6</version>
 </dependency>
 ```
 
@@ -54,7 +54,7 @@ repositories {
 Add the dependency:
 
 ```groovy
-implementation 'io.figchain:figchain-client:1.0.5'
+implementation 'io.figchain:figchain-client:1.0.6'
 ```
 
 ## Quick Start
