@@ -442,7 +442,7 @@ public class FigChainClientBuilder {
             if (bootstrapMode == ClientConfiguration.BootstrapMode.VAULT_ONLY) {
                 bootstrapStrategy = vaultStrategy;
             } else if (bootstrapMode == ClientConfiguration.BootstrapMode.VAULT_FIRST) {
-                bootstrapStrategy = new io.figchain.client.bootstrap.HybridVaultFirstStrategy(vaultStrategy, fcClientTransport);
+                bootstrapStrategy = new io.figchain.client.bootstrap.HybridVaultFirstStrategy(vaultStrategy, serverStrategy, fcClientTransport);
             } else {
                 // Default to SERVER_FIRST with fallback
                 bootstrapStrategy = new io.figchain.client.bootstrap.FallbackServerFirstStrategy(serverStrategy, vaultStrategy);

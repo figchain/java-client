@@ -12,6 +12,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import java.util.Set;
 import java.util.UUID;
@@ -87,13 +90,57 @@ public class BootstrapStrategyTest {
                 .build();
         when(transport.fetchUpdates(eq("test-ns"), eq("vault-cursor"))).thenReturn(updateResponse);
 
-        HybridVaultFirstStrategy strategy = new HybridVaultFirstStrategy(vaultStrategy, transport);
+        ServerBootstrapStrategy serverStrategy = mock(ServerBootstrapStrategy.class);
+
+        HybridVaultFirstStrategy strategy = new HybridVaultFirstStrategy(vaultStrategy, serverStrategy, transport);
         BootstrapResult result = strategy.bootstrap(namespaces);
 
         assertNotNull(result);
         assertEquals("server-latest-cursor", result.getCursors().get("test-ns"));
         verify(vaultService, times(1)).loadBackup();
         verify(transport, times(1)).fetchUpdates(eq("test-ns"), eq("vault-cursor"));
+        verify(serverStrategy, never()).bootstrap(anySet());
+    }
+
+    @Test
+    public void testHybridStrategy_MissingInVault_FetchesFromServer() throws Exception {
+        Set<String> twoNamespaces = Set.of("ns-present", "ns-missing");
+
+        // Vault setup - only has ns-present
+        VaultPayload payload = new VaultPayload();
+        payload.setSyncToken("vault-cursor");
+        // Vault Strategy Mock: Only returns data for 'ns-present', simulating 'ns-missing' was not in Vault.
+
+        BootstrapStrategy mockVaultStrategy = mock(BootstrapStrategy.class);
+        Map<String, String> vaultCursors = new HashMap<>();
+        vaultCursors.put("ns-present", "vault-cursor");
+        BootstrapResult vaultResult = new BootstrapResult(new ArrayList<>(), vaultCursors);
+        when(mockVaultStrategy.bootstrap(twoNamespaces)).thenReturn(vaultResult);
+
+        // Server Strategy - used for missing namespace
+        BootstrapStrategy mockServerStrategy = mock(BootstrapStrategy.class);
+        Map<String, String> serverCursors = new HashMap<>();
+        serverCursors.put("ns-missing", "server-initial-cursor");
+        BootstrapResult serverResult = new BootstrapResult(new ArrayList<>(), serverCursors);
+        when(mockServerStrategy.bootstrap(Collections.singleton("ns-missing"))).thenReturn(serverResult);
+
+        // Transport - used for catching up ns-present
+        UpdateFetchResponse updateResponse = UpdateFetchResponse.newBuilder()
+                .setCursor("server-latest-cursor")
+                .setFigFamilies(Collections.emptyList())
+                .build();
+        when(transport.fetchUpdates(eq("ns-present"), eq("vault-cursor"))).thenReturn(updateResponse);
+
+        HybridVaultFirstStrategy strategy = new HybridVaultFirstStrategy(mockVaultStrategy, mockServerStrategy, transport);
+        BootstrapResult result = strategy.bootstrap(twoNamespaces);
+
+        assertNotNull(result);
+        assertEquals("server-latest-cursor", result.getCursors().get("ns-present"));
+        assertEquals("server-initial-cursor", result.getCursors().get("ns-missing"));
+
+        verify(mockVaultStrategy, times(1)).bootstrap(twoNamespaces);
+        verify(mockServerStrategy, times(1)).bootstrap(Collections.singleton("ns-missing"));
+        verify(transport, times(1)).fetchUpdates(eq("ns-present"), eq("vault-cursor"));
     }
 
     @Test
