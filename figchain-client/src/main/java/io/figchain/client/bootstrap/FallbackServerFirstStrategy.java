@@ -27,8 +27,7 @@ public class FallbackServerFirstStrategy implements BootstrapStrategy {
                 return vaultStrategy.bootstrap(namespaces);
             } catch (Exception ve) {
                 log.error("Fallback to Vault also failed.", ve);
-                // Throw the original exception or the new one?
-                // Probably better to throw the vault exception as it was the last resort
+                ve.addSuppressed(e);
                 throw ve;
             }
         }
