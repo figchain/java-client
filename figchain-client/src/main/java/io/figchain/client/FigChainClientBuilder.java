@@ -455,7 +455,7 @@ public class FigChainClientBuilder {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         ExecutorService fetchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-        final FigChainClient fcClient = new FigChainClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, maxRetries, retryDelayMillis, environmentId, bootstrapStrategy, defaultContext);
+        final FigChainClient fcClient = new FigChainClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId, bootstrapStrategy, defaultContext);
         this.updateListeners.add(fcClient);
         final FcUpdateListener broadcastListener = new BroadcastFcUpdateListener(this.updateListeners);
 
