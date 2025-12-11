@@ -133,8 +133,7 @@ public class FigChainClient implements FcUpdateListener {
         this.environmentId = environmentId;
         this.bootstrapStrategy = bootstrapStrategy;
         this.defaultContext = defaultContext;
-        log.info("FcClient initialized with namespaces: {}, maxRetries: {}, retryDelayMillis: {}", namespaces,
-                maxRetries, retryDelayMillis);
+        log.info("FcClient initialized with namespaces: {}", namespaces);
     }
 
     public void setPollingStrategy(PollingStrategy pollingStrategy) {
