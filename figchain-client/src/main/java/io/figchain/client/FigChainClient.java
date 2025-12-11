@@ -118,8 +118,8 @@ public class FigChainClient implements FcUpdateListener {
     }
 
     public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
-            String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor, int maxRetries,
-            long retryDelayMillis, java.util.UUID environmentId, BootstrapStrategy bootstrapStrategy, EvaluationContext defaultContext) {
+            String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor,
+            java.util.UUID environmentId, BootstrapStrategy bootstrapStrategy, EvaluationContext defaultContext) {
         if (namespaces == null || namespaces.isEmpty()) {
             throw new IllegalArgumentException("At least one namespace must be configured.");
         }
