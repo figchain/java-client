@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 
-public class S3VaultFetcher {
+public class S3VaultFetcher implements AutoCloseable {
 
     private final S3Client s3Client;
     private final String bucketName;
@@ -70,6 +70,13 @@ public class S3VaultFetcher {
             throw new IOException("Backup file not found at key: " + key, e);
         } catch (Exception e) {
             throw new IOException("Failed to fetch backup from S3", e);
+        }
+    }
+
+    @Override
+    public void close() {
+        if (s3Client != null) {
+            s3Client.close();
         }
     }
 }

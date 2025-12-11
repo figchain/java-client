@@ -17,7 +17,7 @@ public class VaultService {
 
     private static final Logger log = LoggerFactory.getLogger(VaultService.class);
 
-    private final S3VaultFetcher fetcher;
+
     private final ClientConfiguration config;
     private final ObjectMapper objectMapper;
 
@@ -27,12 +27,6 @@ public class VaultService {
     public VaultService(ClientConfiguration config, ObjectMapper objectMapper) {
         this.config = config;
         this.objectMapper = objectMapper;
-        // Initialize fetcher only if enabled
-        if (config.isVaultEnabled()) {
-            this.fetcher = new S3VaultFetcher(config);
-        } else {
-            this.fetcher = null;
-        }
     }
 
     public VaultPayload loadBackup() throws IOException {
@@ -57,8 +51,11 @@ public class VaultService {
         // 3. Fetch Encrypted Backup
         log.debug("Fetching backup from S3...");
         VaultBackup backup;
-        try (InputStream is = fetcher.fetchBackup(fingerprint)) {
-            backup = objectMapper.readValue(is, VaultBackup.class);
+
+        try (S3VaultFetcher fetcher = new S3VaultFetcher(config)) {
+             try (InputStream is = fetcher.fetchBackup(fingerprint)) {
+                backup = objectMapper.readValue(is, VaultBackup.class);
+            }
         }
 
         if (backup == null) {
