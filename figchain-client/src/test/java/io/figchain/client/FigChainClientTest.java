@@ -41,16 +41,22 @@ class FigChainClientTest {
 
     @Mock
     FigStore mockFigStore;
+
     @Mock
     RolloutEvaluator mockRolloutEvaluator;
+
     @Mock
     FcClientTransport mockFcClientTransport;
+
     @Mock
     HttpClient mockHttpClient;
+
     @Mock
     ExecutorService mockFetchExecutor;
+
     @Mock
     ScheduledExecutorService mockScheduler;
+
     @Mock
     PollingStrategy mockPollingStrategy;
 
@@ -58,6 +64,7 @@ class FigChainClientTest {
     private Set<String> testNamespaces;
     private EvaluationContext defaultContext;
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
@@ -95,9 +102,10 @@ class FigChainClientTest {
                 java.util.UUID.randomUUID(), // environmentId
                 defaultContext
         );
-    fcClient.setPollingStrategy(mockPollingStrategy);
-    // Release the latch so getFig() does not block in tests
-    fcClient._testReleaseInitialFetchLatch();
+
+        fcClient.setPollingStrategy(mockPollingStrategy);
+        // Release the latch so getFig() does not block in tests
+        fcClient._testReleaseInitialFetchLatch();
     }
     @Test
     void testGetFigWithNamespaceAndKeyAndContext() {
@@ -276,9 +284,14 @@ class FigChainClientTest {
             future.get();
         });
 
-        assertTrue(exception.getCause() instanceof io.figchain.client.transport.FcAuthenticationException);
+        Throwable cause = exception.getCause();
+        while (cause instanceof RuntimeException && !(cause instanceof io.figchain.client.transport.FcAuthenticationException) && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
 
-        // Verify that fetchInitial was called only once
+        assertTrue(cause instanceof io.figchain.client.transport.FcAuthenticationException);
+
+        // Verify that fetchInitialData called fetchInitial only once
         verify(mockFcClientTransport, times(1)).fetchInitial(eq("test-namespace"), any(java.util.UUID.class), nullable(Instant.class));
     }
 }

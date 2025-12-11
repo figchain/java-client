@@ -18,6 +18,23 @@ public class ClientConfiguration {
     private String clientSecret;
     private String environmentId;
 
+    // Vault (S3 Backup) Configuration
+    private boolean vaultEnabled = false;
+    private String vaultBucket;
+    private String vaultPrefix = "";
+    private String vaultRegion = "us-east-1";
+    private String vaultEndpoint;
+    private boolean vaultPathStyleAccess = false;
+    private String vaultPrivateKeyPath;
+    private BootstrapMode bootstrapMode = BootstrapMode.SERVER_FIRST;
+
+    public enum BootstrapMode {
+        SERVER_FIRST,
+        VAULT_FIRST,
+        SERVER_ONLY,
+        VAULT_ONLY
+    }
+
     public String getBaseUrl() {
         return baseUrl;
     }
@@ -88,5 +105,69 @@ public class ClientConfiguration {
 
     public void setEnvironmentId(String environmentId) {
         this.environmentId = environmentId;
+    }
+
+    public boolean isVaultEnabled() {
+        return vaultEnabled;
+    }
+
+    public void setVaultEnabled(boolean vaultEnabled) {
+        this.vaultEnabled = vaultEnabled;
+    }
+
+    public String getVaultBucket() {
+        return vaultBucket;
+    }
+
+    public void setVaultBucket(String vaultBucket) {
+        this.vaultBucket = vaultBucket;
+    }
+
+    public String getVaultPrefix() {
+        return vaultPrefix;
+    }
+
+    public void setVaultPrefix(String vaultPrefix) {
+        this.vaultPrefix = vaultPrefix;
+    }
+
+    public String getVaultRegion() {
+        return vaultRegion;
+    }
+
+    public void setVaultRegion(String vaultRegion) {
+        this.vaultRegion = vaultRegion;
+    }
+
+    public String getVaultEndpoint() {
+        return vaultEndpoint;
+    }
+
+    public void setVaultEndpoint(String vaultEndpoint) {
+        this.vaultEndpoint = vaultEndpoint;
+    }
+
+    public boolean isVaultPathStyleAccess() {
+        return vaultPathStyleAccess;
+    }
+
+    public void setVaultPathStyleAccess(boolean vaultPathStyleAccess) {
+        this.vaultPathStyleAccess = vaultPathStyleAccess;
+    }
+
+    public String getVaultPrivateKeyPath() {
+        return vaultPrivateKeyPath;
+    }
+
+    public void setVaultPrivateKeyPath(String vaultPrivateKeyPath) {
+        this.vaultPrivateKeyPath = vaultPrivateKeyPath;
+    }
+
+    public BootstrapMode getBootstrapMode() {
+        return bootstrapMode;
+    }
+
+    public void setBootstrapMode(BootstrapMode bootstrapMode) {
+        this.bootstrapMode = bootstrapMode;
     }
 }
