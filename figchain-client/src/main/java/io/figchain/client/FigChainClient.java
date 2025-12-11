@@ -1,40 +1,31 @@
-
 package io.figchain.client;
-
-import io.figchain.avro.model.Fig;
-import org.apache.avro.specific.SpecificRecord;
-import io.figchain.client.store.FigStore;
-import io.figchain.client.transport.FcClientTransport;
-import io.figchain.client.transport.FcAuthenticationException;
-import io.figchain.client.transport.FcAuthorizationException;
-import io.figchain.client.transport.FcTransportException;
-import io.figchain.avro.model.InitialFetchResponse;
-import io.figchain.avro.model.InitialFetchRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-import java.util.function.Consumer;
-import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
-/**
- * The main client for interacting with the FigChain service.
- */
+import org.apache.avro.specific.SpecificRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.figchain.avro.model.Fig;
+import io.figchain.avro.model.FigFamily;
+import io.figchain.client.bootstrap.BootstrapStrategy;
 import io.figchain.client.polling.FcUpdateListener;
 import io.figchain.client.polling.PollingStrategy;
+import io.figchain.client.store.FigStore;
+import io.figchain.client.transport.FcClientTransport;
 
 /**
  * The {@code FcClient} is the main client for interacting with the FigChain
@@ -91,11 +82,10 @@ public class FigChainClient implements FcUpdateListener {
     private final String asOfTimestamp;
     private final Set<String> namespaces;
     private final ExecutorService fetchExecutor;
-    private final int maxRetries;
-    private final long retryDelayMillis;
     private final Map<String, String> namespaceCursors;
     private final java.util.UUID environmentId;
     private PollingStrategy pollingStrategy;
+    private final BootstrapStrategy bootstrapStrategy;
     private final CountDownLatch initialFetchLatch = new CountDownLatch(1);
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final Map<String, List<TypedListener<?>>> typedListeners = new ConcurrentHashMap<>();
@@ -122,6 +112,14 @@ public class FigChainClient implements FcUpdateListener {
     public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor, int maxRetries,
             long retryDelayMillis, java.util.UUID environmentId, EvaluationContext defaultContext) {
+        this(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId,
+                new io.figchain.client.bootstrap.ServerBootstrapStrategy(fcClientTransport, environmentId, asOfTimestamp, maxRetries, retryDelayMillis),
+                defaultContext);
+    }
+
+    public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
+            String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor,
+            java.util.UUID environmentId, BootstrapStrategy bootstrapStrategy, EvaluationContext defaultContext) {
         if (namespaces == null || namespaces.isEmpty()) {
             throw new IllegalArgumentException("At least one namespace must be configured.");
         }
@@ -131,13 +129,11 @@ public class FigChainClient implements FcUpdateListener {
         this.asOfTimestamp = asOfTimestamp;
         this.namespaces = namespaces;
         this.fetchExecutor = fetchExecutor;
-        this.maxRetries = maxRetries;
-        this.retryDelayMillis = retryDelayMillis;
         this.namespaceCursors = new ConcurrentHashMap<>();
         this.environmentId = environmentId;
+        this.bootstrapStrategy = bootstrapStrategy;
         this.defaultContext = defaultContext;
-        log.info("FcClient initialized with namespaces: {}, maxRetries: {}, retryDelayMillis: {}", namespaces,
-                maxRetries, retryDelayMillis);
+        log.info("FcClient initialized with namespaces: {}", namespaces);
     }
 
     public void setPollingStrategy(PollingStrategy pollingStrategy) {
@@ -154,11 +150,16 @@ public class FigChainClient implements FcUpdateListener {
             return CompletableFuture.runAsync(() -> {
                 try {
                     fetchInitialData();
+                } catch (Exception e) {
+                    log.error("Initial fetch failed", e);
+                    throw new RuntimeException("Initial fetch failed", e);
                 } finally {
                     initialFetchLatch.countDown();
                 }
             }, fetchExecutor).thenRun(() -> {
-                pollingStrategy.start();
+                if (pollingStrategy != null) {
+                    pollingStrategy.start();
+                }
                 log.info("FcClient started.");
             });
         }
@@ -167,7 +168,9 @@ public class FigChainClient implements FcUpdateListener {
 
     public void stop() {
         log.info("Shutting down FcClient...");
-        pollingStrategy.stop();
+        if (pollingStrategy != null) {
+            pollingStrategy.stop();
+        }
         fcClientTransport.shutdown();
         log.info("Client transport shut down.");
         fetchExecutor.shutdown();
@@ -186,44 +189,31 @@ public class FigChainClient implements FcUpdateListener {
     }
 
     private void fetchInitialData() {
-        log.debug("Fetching initial data for namespaces: {}", namespaces);
-        namespaces.stream().map(namespace -> CompletableFuture.runAsync(() -> {
-            executeWithRetry(() -> {
-                log.info("Building InitialFetchRequest with namespace: {} and environmentId: {}", namespace,
-                        environmentId);
-                InitialFetchRequest request = InitialFetchRequest.newBuilder()
-                        .setNamespace(namespace)
-                        .setEnvironmentId(environmentId)
-                        .setAsOfTimestamp(asOfTimestamp != null ? java.time.Instant.parse(asOfTimestamp) : null)
-                        .build();
+        try {
+            log.debug("Bootstrapping data for namespaces: {}", namespaces);
+            io.figchain.client.bootstrap.BootstrapResult result = bootstrapStrategy.bootstrap(namespaces);
 
-                if (log.isDebugEnabled()) {
-                    log.debug("InitialFetchRequest for namespace {}: {}", namespace, request);
+            if (result != null) {
+                onUpdate(result.getFigFamilies());
+                if (result.getCursors() != null) {
+                    namespaceCursors.putAll(result.getCursors());
                 }
-
-                InitialFetchResponse response = fcClientTransport.fetchInitial(namespace, environmentId,
-                        asOfTimestamp != null ? java.time.Instant.parse(asOfTimestamp) : null);
-
-                if (log.isDebugEnabled()) {
-                    log.debug("InitialFetchResponse for namespace {}: cursor={}, figFamilies.size={}",
-                            namespace, response.getCursor(),
-                            response.getFigFamilies() != null ? response.getFigFamilies().size() : 0);
-                }
-
-                onUpdate(response.getFigFamilies());
-                namespaceCursors.put(namespace, response.getCursor().toString());
-                log.info("Successfully fetched initial data for namespace {}. Current cursor: {}", namespace,
-                        response.getCursor());
-                return null;
-            }, "fetch initial data for namespace " + namespace);
-        }, fetchExecutor)).collect(Collectors.toList()).forEach(CompletableFuture::join);
+            }
+            log.info("Bootstrap complete.");
+        } catch (RuntimeException e) {
+            log.error("Bootstrap failed", e);
+            throw e;
+        } catch (Exception e) {
+            log.error("Bootstrap failed", e);
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    public void onUpdate(java.util.List<io.figchain.avro.model.FigFamily> figFamilies) {
+    public void onUpdate(List<FigFamily> figFamilies) {
         if (figFamilies != null && !figFamilies.isEmpty()) {
             log.debug("Updating fig store with {} new/updated fig families.", figFamilies.size());
-            for (io.figchain.avro.model.FigFamily figFamily : figFamilies) {
+            for (FigFamily figFamily : figFamilies) {
                 figStore.put(figFamily);
                 notifyTypedListeners(figFamily);
             }
@@ -232,7 +222,7 @@ public class FigChainClient implements FcUpdateListener {
         }
     }
 
-    private void notifyTypedListeners(io.figchain.avro.model.FigFamily figFamily) {
+    private void notifyTypedListeners(FigFamily figFamily) {
         String namespace = figFamily.getDefinition().getNamespace().toString();
         String key = figFamily.getDefinition().getKey().toString();
         String lookupKey = namespace + ":" + key;
@@ -245,7 +235,7 @@ public class FigChainClient implements FcUpdateListener {
         }
     }
 
-    private <T extends SpecificRecord> void notifyListener(io.figchain.avro.model.FigFamily figFamily, TypedListener<T> listener) {
+    private <T extends SpecificRecord> void notifyListener(FigFamily figFamily, TypedListener<T> listener) {
         try {
             EvaluationContext effectiveContext = (defaultContext != null) ? defaultContext.merge(listener.context) : (listener.context != null ? listener.context : new EvaluationContext());
             Optional<Fig> fig = rolloutEvaluator.evaluate(figFamily, effectiveContext);
@@ -257,49 +247,6 @@ public class FigChainClient implements FcUpdateListener {
         } catch (IOException | RuntimeException e) {
             log.error("Failed to notify listener for key: {}", figFamily.getDefinition().getKey(), e);
         }
-    }
-
-    private <T> T executeWithRetry(Callable<T> task, String taskName) {
-        int attempts = 0;
-        while (attempts <= maxRetries) {
-            try {
-                return task.call();
-            } catch (Exception e) {
-                // Check for FcTransportException to avoid retrying on auth errors
-                FcTransportException transportException = null;
-                if (e instanceof FcTransportException) {
-                    transportException = (FcTransportException) e;
-                } else if (e.getCause() instanceof FcTransportException) {
-                    transportException = (FcTransportException) e.getCause();
-                }
-
-                if (transportException != null) {
-                    if (transportException instanceof FcAuthenticationException ||
-                        transportException instanceof FcAuthorizationException) {
-                        log.error("Authentication/Authorization failed for {}: {}", taskName, transportException.getMessage());
-                        throw transportException;
-                    }
-                }
-
-                attempts++;
-                if (attempts <= maxRetries) {
-                    log.warn("Attempt {}/{} to {} failed. Retrying in {} ms. Error: {}", attempts, maxRetries, taskName,
-                            retryDelayMillis, e.getMessage());
-                    try {
-                        Thread.sleep(retryDelayMillis);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        log.error("Retry delay interrupted for {}.", taskName, ie);
-                        break;
-                    }
-                } else {
-                    log.error("All {} attempts to {} failed. Giving up. Error: {}", maxRetries + 1, taskName,
-                            e.getMessage());
-                    throw new RuntimeException("Failed to " + taskName + " after " + (maxRetries + 1) + " attempts", e);
-                }
-            }
-        }
-        return null; // Should not be reached
     }
 
     /**
@@ -362,6 +309,15 @@ public class FigChainClient implements FcUpdateListener {
         return Optional.empty();
     }
 
+    /**
+     * Registers a listener for updates to a specific Fig key.
+     * <p>
+     * WARNING: This feature should be used for SERVER-SCOPED configuration only (e.g. global flags).
+     * The update is evaluated with the context provided at registration (or an empty one). If your rules depend on
+     * user-specific attributes (like request-scoped context), this listener may receive default values or fail to match rules.
+     * For request-scoped configuration, use getFig() with the appropriate context when needed.
+     * </p>
+     */
     public <T extends SpecificRecord> void registerListener(String key, Class<T> clazz, Consumer<? super T> listener) {
         if (namespaces.size() != 1) {
             throw new IllegalStateException("Multiple namespaces configured; use registerListener(namespace, key, clazz, listener)");
@@ -380,6 +336,15 @@ public class FigChainClient implements FcUpdateListener {
         registerListener(namespace, key, null, clazz, listener);
     }
 
+    /**
+     * Registers a listener for updates to a specific Fig key in a specific namespace.
+     * <p>
+     * WARNING: This feature should be used for SERVER-SCOPED configuration only (e.g. global flags).
+     * The update is evaluated with the context provided at registration (or an empty one). If your rules depend on
+     * user-specific attributes (like request-scoped context), this listener may receive default values or fail to match rules.
+     * For request-scoped configuration, use getFig() with the appropriate context when needed.
+     * </p>
+     */
     public <T extends SpecificRecord> void registerListener(String namespace, String key, EvaluationContext context, Class<T> clazz, Consumer<? super T> listener) {
         String lookupKey = namespace + ":" + key;
         typedListeners.computeIfAbsent(lookupKey, k -> new CopyOnWriteArrayList<>())

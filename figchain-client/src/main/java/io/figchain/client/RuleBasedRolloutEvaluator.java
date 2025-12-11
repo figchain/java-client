@@ -16,6 +16,7 @@ import java.util.Optional;
  * Evaluates rollout rules defined in the FigFamily to select the appropriate Fig version.
  */
 public class RuleBasedRolloutEvaluator implements RolloutEvaluator {
+
     private static final Logger log = LoggerFactory.getLogger(RuleBasedRolloutEvaluator.class);
 
     @Override
@@ -31,12 +32,12 @@ public class RuleBasedRolloutEvaluator implements RolloutEvaluator {
 
         // 2. Fallback to Default
         if (figFamily.getDefaultVersion() != null) {
-             return findFigVersion(figFamily, figFamily.getDefaultVersion());
+            return findFigVersion(figFamily, figFamily.getDefaultVersion());
         }
-        
+
         // 3. Absolute Fallback: Return the first available fig (usually the latest)
         if (figFamily.getFigs() != null && !figFamily.getFigs().isEmpty()) {
-             return Optional.of(figFamily.getFigs().get(0));
+            return Optional.of(figFamily.getFigs().get(0));
         }
 
         return Optional.empty();
@@ -44,7 +45,7 @@ public class RuleBasedRolloutEvaluator implements RolloutEvaluator {
 
     private boolean matches(Rule rule, EvaluationContext context) {
         if (rule.getConditions() == null || rule.getConditions().isEmpty()) {
-            return true; 
+            return true;
         }
         for (Condition condition : rule.getConditions()) {
             if (!evaluateCondition(condition, context)) {
@@ -82,20 +83,20 @@ public class RuleBasedRolloutEvaluator implements RolloutEvaluator {
             case LESS_THAN:
                 return ruleValue != null && contextValue.compareTo(ruleValue) < 0;
             case SPLIT:
-                 if (ruleValue == null) return false;
-                 try {
-                     int threshold = Integer.parseInt(ruleValue); 
-                     int bucket = getBucket(contextValue);
-                     return bucket < threshold;
-                 } catch (NumberFormatException e) {
-                     log.warn("Invalid split value: {}", ruleValue);
-                     return false;
-                 }
+                if (ruleValue == null) return false;
+                try {
+                    int threshold = Integer.parseInt(ruleValue);
+                    int bucket = getBucket(contextValue);
+                    return bucket < threshold;
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid split value: {}", ruleValue);
+                    return false;
+                }
             default:
                 return false;
         }
     }
-    
+
     /**
      * FNV-1a hash implementation for deterministic bucketing.
      */
@@ -109,10 +110,10 @@ public class RuleBasedRolloutEvaluator implements RolloutEvaluator {
     }
 
     private Optional<Fig> findFigVersion(FigFamily family, Object version) {
-         if (family.getFigs() == null) return Optional.empty();
-         String versionStr = version.toString();
-         return family.getFigs().stream()
-             .filter(f -> f.getVersion().toString().equals(versionStr))
-             .findFirst();
+        if (family.getFigs() == null) return Optional.empty();
+        String versionStr = version.toString();
+        return family.getFigs().stream()
+            .filter(f -> f.getVersion().toString().equals(versionStr))
+            .findFirst();
     }
 }

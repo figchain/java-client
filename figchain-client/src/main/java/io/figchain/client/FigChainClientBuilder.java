@@ -48,6 +48,14 @@ public class FigChainClientBuilder {
     private Transport transport = Transport.LONG_POLLING;
     private final List<FcUpdateListener> updateListeners = new ArrayList<>();
     private EvaluationContext defaultContext = new EvaluationContext();
+    private boolean vaultEnabled = false;
+    private String vaultBucket;
+    private String vaultPrefix = "";
+    private String vaultRegion = "us-east-1";
+    private String vaultEndpoint;
+    private boolean vaultPathStyleAccess = false;
+    private String vaultPrivateKeyPath;
+    private ClientConfiguration.BootstrapMode bootstrapMode = ClientConfiguration.BootstrapMode.SERVER_FIRST;
 
     /**
      * Sets the default evaluation context to use for getFig overloads.
@@ -202,6 +210,46 @@ public class FigChainClientBuilder {
         return this;
     }
 
+    public FigChainClientBuilder withVaultEnabled(boolean vaultEnabled) {
+        this.vaultEnabled = vaultEnabled;
+        return this;
+    }
+
+    public FigChainClientBuilder withVaultBucket(String vaultBucket) {
+        this.vaultBucket = vaultBucket;
+        return this;
+    }
+
+    public FigChainClientBuilder withVaultPrefix(String vaultPrefix) {
+        this.vaultPrefix = vaultPrefix;
+        return this;
+    }
+
+    public FigChainClientBuilder withVaultRegion(String vaultRegion) {
+        this.vaultRegion = vaultRegion;
+        return this;
+    }
+
+    public FigChainClientBuilder withVaultEndpoint(String vaultEndpoint) {
+        this.vaultEndpoint = vaultEndpoint;
+        return this;
+    }
+
+    public FigChainClientBuilder withVaultPathStyleAccess(boolean vaultPathStyleAccess) {
+        this.vaultPathStyleAccess = vaultPathStyleAccess;
+        return this;
+    }
+
+    public FigChainClientBuilder withVaultPrivateKeyPath(String vaultPrivateKeyPath) {
+        this.vaultPrivateKeyPath = vaultPrivateKeyPath;
+        return this;
+    }
+
+    public FigChainClientBuilder withBootstrapMode(ClientConfiguration.BootstrapMode bootstrapMode) {
+        this.bootstrapMode = bootstrapMode;
+        return this;
+    }
+
     /**
      * Loads configuration from a YAML file.
      *
@@ -227,6 +275,114 @@ public class FigChainClientBuilder {
         if (config.getEnvironmentId() != null) {
             this.environmentId = java.util.UUID.fromString(config.getEnvironmentId());
         }
+
+        this.vaultEnabled = config.isVaultEnabled();
+        this.vaultBucket = config.getVaultBucket();
+        this.vaultPrefix = config.getVaultPrefix();
+        this.vaultRegion = config.getVaultRegion();
+        this.vaultEndpoint = config.getVaultEndpoint();
+        this.vaultPathStyleAccess = config.isVaultPathStyleAccess();
+        this.vaultPrivateKeyPath = config.getVaultPrivateKeyPath();
+        this.bootstrapMode = config.getBootstrapMode();
+
+        return this;
+    }
+
+    /**
+     * Loads configuration from environment variables.
+     * <p>
+     * Supported environment variables:
+     * <ul>
+     *   <li>FIGCHAIN_URL</li>
+     *   <li>FIGCHAIN_LONG_POLLING_URL</li>
+     *   <li>FIGCHAIN_CLIENT_SECRET</li>
+     *   <li>FIGCHAIN_ENVIRONMENT_ID</li>
+     *   <li>FIGCHAIN_NAMESPACES (comma-separated)</li>
+     *   <li>FIGCHAIN_POLLING_INTERVAL_MS</li>
+     *   <li>FIGCHAIN_MAX_RETRIES</li>
+     *   <li>FIGCHAIN_RETRY_DELAY_MS</li>
+     *   <li>FIGCHAIN_AS_OF_TIMESTAMP</li>
+     *   <li>FIGCHAIN_VAULT_ENABLED</li>
+     *   <li>FIGCHAIN_VAULT_BUCKET</li>
+     *   <li>FIGCHAIN_VAULT_PREFIX</li>
+     *   <li>FIGCHAIN_VAULT_REGION</li>
+     *   <li>FIGCHAIN_VAULT_ENDPOINT</li>
+     *   <li>FIGCHAIN_VAULT_PATH_STYLE_ACCESS</li>
+     *   <li>FIGCHAIN_VAULT_PRIVATE_KEY_PATH</li>
+     *   <li>FIGCHAIN_BOOTSTRAP_MODE</li>
+     * </ul>
+     *
+     * @return this builder
+     */
+    public FigChainClientBuilder fromEnv() {
+        return fromEnv(System::getenv);
+    }
+
+    /**
+     * Loads configuration from the provided environment variable provider.
+     *
+     * @param envProvider a function that provides the value for an environment variable
+     * @return this builder
+     */
+    public FigChainClientBuilder fromEnv(java.util.function.Function<String, String> envProvider) {
+        String envBaseUrl = envProvider.apply("FIGCHAIN_URL");
+        if (envBaseUrl != null) this.baseUrl = envBaseUrl;
+
+        String envLongPollingUrl = envProvider.apply("FIGCHAIN_LONG_POLLING_URL");
+        if (envLongPollingUrl != null) this.longPollingBaseUrl = envLongPollingUrl;
+
+        String envClientSecret = envProvider.apply("FIGCHAIN_CLIENT_SECRET");
+        if (envClientSecret != null) this.clientSecret = envClientSecret;
+
+        String envEnvId = envProvider.apply("FIGCHAIN_ENVIRONMENT_ID");
+        if (envEnvId != null) this.environmentId = java.util.UUID.fromString(envEnvId);
+
+        String envNamespaces = envProvider.apply("FIGCHAIN_NAMESPACES");
+        if (envNamespaces != null && !envNamespaces.trim().isEmpty()) {
+            String[] ns = envNamespaces.split(",");
+            for (String n : ns) {
+                if (!n.trim().isEmpty()) {
+                    this.namespaces.add(n.trim());
+                }
+            }
+        }
+
+        String envPollingInterval = envProvider.apply("FIGCHAIN_POLLING_INTERVAL_MS");
+        if (envPollingInterval != null) this.pollingInterval = Long.parseLong(envPollingInterval);
+
+        String envMaxRetries = envProvider.apply("FIGCHAIN_MAX_RETRIES");
+        if (envMaxRetries != null) this.maxRetries = Integer.parseInt(envMaxRetries);
+
+        String envRetryDelay = envProvider.apply("FIGCHAIN_RETRY_DELAY_MS");
+        if (envRetryDelay != null) this.retryDelayMillis = Long.parseLong(envRetryDelay);
+
+        String envAsOf = envProvider.apply("FIGCHAIN_AS_OF_TIMESTAMP");
+        if (envAsOf != null) this.asOfTimestamp = envAsOf;
+
+        String envVaultEnabled = envProvider.apply("FIGCHAIN_VAULT_ENABLED");
+        if (envVaultEnabled != null) this.vaultEnabled = Boolean.parseBoolean(envVaultEnabled);
+
+        String envVaultBucket = envProvider.apply("FIGCHAIN_VAULT_BUCKET");
+        if (envVaultBucket != null) this.vaultBucket = envVaultBucket;
+
+        String envVaultPrefix = envProvider.apply("FIGCHAIN_VAULT_PREFIX");
+        if (envVaultPrefix != null) this.vaultPrefix = envVaultPrefix;
+
+        String envVaultRegion = envProvider.apply("FIGCHAIN_VAULT_REGION");
+        if (envVaultRegion != null) this.vaultRegion = envVaultRegion;
+
+        String envVaultEndpoint = envProvider.apply("FIGCHAIN_VAULT_ENDPOINT");
+        if (envVaultEndpoint != null) this.vaultEndpoint = envVaultEndpoint;
+
+        String envVaultPathStyle = envProvider.apply("FIGCHAIN_VAULT_PATH_STYLE_ACCESS");
+        if (envVaultPathStyle != null) this.vaultPathStyleAccess = Boolean.parseBoolean(envVaultPathStyle);
+
+        String envVaultKeyPath = envProvider.apply("FIGCHAIN_VAULT_PRIVATE_KEY_PATH");
+        if (envVaultKeyPath != null) this.vaultPrivateKeyPath = envVaultKeyPath;
+
+        String envBootstrapMode = envProvider.apply("FIGCHAIN_BOOTSTRAP_MODE");
+        if (envBootstrapMode != null) this.bootstrapMode = ClientConfiguration.BootstrapMode.valueOf(envBootstrapMode);
+
         return this;
     }
 
@@ -262,10 +418,44 @@ public class FigChainClientBuilder {
             fcClientTransport = new HttpFcClientTransport(httpClient, baseUri, clientSecret, environmentId);
         }
 
+        // Configure Bootstrap Strategy
+        io.figchain.client.bootstrap.BootstrapStrategy bootstrapStrategy = null;
+
+        // 1. Server Strategy (Core)
+        io.figchain.client.bootstrap.ServerBootstrapStrategy serverStrategy =
+            new io.figchain.client.bootstrap.ServerBootstrapStrategy(fcClientTransport, environmentId, asOfTimestamp, maxRetries, retryDelayMillis);
+
+        if (vaultEnabled) {
+            // Create Config object for VaultService (reuse fields from builder not ClientConfiguration object to avoid mismatch)
+            ClientConfiguration vaultConfig = new ClientConfiguration();
+            vaultConfig.setVaultEnabled(true); // Since we entered this block
+            vaultConfig.setVaultBucket(vaultBucket);
+            vaultConfig.setVaultPrefix(vaultPrefix);
+            vaultConfig.setVaultRegion(vaultRegion);
+            vaultConfig.setVaultEndpoint(vaultEndpoint);
+            vaultConfig.setVaultPathStyleAccess(vaultPathStyleAccess);
+            vaultConfig.setVaultPrivateKeyPath(vaultPrivateKeyPath);
+
+            io.figchain.client.vault.VaultService vaultService = new io.figchain.client.vault.VaultService(vaultConfig, new ObjectMapper());
+            io.figchain.client.bootstrap.VaultBootstrapStrategy vaultStrategy = new io.figchain.client.bootstrap.VaultBootstrapStrategy(vaultService);
+
+            if (bootstrapMode == ClientConfiguration.BootstrapMode.VAULT_ONLY) {
+                bootstrapStrategy = vaultStrategy;
+            } else if (bootstrapMode == ClientConfiguration.BootstrapMode.VAULT_FIRST) {
+                bootstrapStrategy = new io.figchain.client.bootstrap.HybridVaultFirstStrategy(vaultStrategy, serverStrategy, fcClientTransport);
+            } else {
+                // Default to SERVER_FIRST with fallback
+                bootstrapStrategy = new io.figchain.client.bootstrap.FallbackServerFirstStrategy(serverStrategy, vaultStrategy);
+            }
+        } else {
+            // Default to Server Only (standard behavior)
+            bootstrapStrategy = serverStrategy;
+        }
+
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         ExecutorService fetchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-        final FigChainClient fcClient = new FigChainClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, maxRetries, retryDelayMillis, environmentId, defaultContext);
+        final FigChainClient fcClient = new FigChainClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId, bootstrapStrategy, defaultContext);
         this.updateListeners.add(fcClient);
         final FcUpdateListener broadcastListener = new BroadcastFcUpdateListener(this.updateListeners);
 

@@ -88,7 +88,7 @@ client.shutdown();
 
 ## Documentation
 
-For detailed usage instructions, see the [API documentation](https://docs.figchain.io).
+For detailed usage instructions, see the [Client Documentation](https://docs.figchain.io/clients/java).
 
 ## Requirements
 
@@ -107,6 +107,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Support
 
-- [Documentation](https://docs.figchain.io)
+- [Documentation](https://docs.figchain.io) / [Java Client](https://docs.figchain.io/clients/java)
 - [Issues](https://github.com/figchain/java-client/issues)
 - [Contact](mailto:support@figchain.io)
