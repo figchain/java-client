@@ -112,7 +112,7 @@ public class FigChainClient implements FcUpdateListener {
     public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor, int maxRetries,
             long retryDelayMillis, java.util.UUID environmentId, EvaluationContext defaultContext) {
-        this(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, maxRetries, retryDelayMillis, environmentId,
+        this(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId,
                 new io.figchain.client.bootstrap.ServerBootstrapStrategy(fcClientTransport, environmentId, asOfTimestamp, maxRetries, retryDelayMillis),
                 defaultContext);
     }
