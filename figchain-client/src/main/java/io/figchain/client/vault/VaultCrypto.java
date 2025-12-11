@@ -130,13 +130,18 @@ public class VaultCrypto {
     }
 
     /**
-     * Calculates the SHA-256 fingerprint of the Public Key associated with the Private Key.
+     * Calculates the SHA-256 fingerprint of the Public Key associated with the
+     * Private Key.
      * Note: This assumes we have access to the public key or can derive it.
-     * Since we only have PrivateKey here, it's tricky to derive Public Key from generic PrivateKey interface
+     * Since we only have PrivateKey here, it's tricky to derive Public Key from
+     * generic PrivateKey interface
      * unless it's RSAPrivateCrtKey.
      *
-     * @param privateKey RSA Private Key
-     * @return SHA-256 hash of the public key (if derivable) or placeholder if not needed for read path
+     * @param privateKey RSA Private Key, must be an instance of
+     *                   {@link java.security.interfaces.RSAPrivateCrtKey}.
+     * @return SHA-256 hash of the public key.
+     * @throws IllegalArgumentException if the public key cannot be derived from the
+     *                                  provided private key.
      */
     public static String calculateKeyFingerprint(PrivateKey privateKey) {
         // In the backup flow, the client might need to know which folder to look in.
