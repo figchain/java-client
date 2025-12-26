@@ -2,6 +2,8 @@ package io.figchain.client.transport;
 
 import io.figchain.avro.model.InitialFetchResponse;
 import io.figchain.avro.model.UpdateFetchResponse;
+import io.figchain.client.dto.NamespaceKey;
+import io.figchain.client.dto.UserPublicKey;
 
 public interface FcClientTransport {
 
@@ -26,5 +28,18 @@ public interface FcClientTransport {
     /**
      * Shuts down the client cleanly.
      */
+    /**
+     * Fetches the Namespace Key for a given namespace.
+     * @param namespace the namespace
+     * @return the namespace key
+     */
+    java.util.List<NamespaceKey> getNamespaceKey(String namespace);
+
+    /**
+     * Uploads the user's public key to the server.
+     * @param key the public key
+     */
+    void uploadPublicKey(UserPublicKey key);
+
     void shutdown();
 }

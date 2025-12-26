@@ -9,6 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import io.figchain.client.AvroEncoding;
+import io.figchain.client.dto.NamespaceKey;
+import io.figchain.client.dto.UserPublicKey;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -21,11 +24,16 @@ public class HttpFcClientTransport implements FcClientTransport {
 
     protected final HttpClient httpClient;
     private final URI baseUrl;
-    private final String clientSecret;
+    private final TokenProvider tokenProvider;
     private final java.util.UUID environmentId;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     protected String authHeaderValue() {
-        return "Bearer " + clientSecret;
+        try {
+            return "Bearer " + tokenProvider.getToken();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to generate auth token", e);
+        }
     }
 
     @Override
@@ -81,14 +89,14 @@ public class HttpFcClientTransport implements FcClientTransport {
         }
     }
 
-    public HttpFcClientTransport(HttpClient httpClient, URI baseUrl, String clientSecret) {
-        this(httpClient, baseUrl, clientSecret, null);
+    public HttpFcClientTransport(HttpClient httpClient, URI baseUrl, TokenProvider tokenProvider) {
+        this(httpClient, baseUrl, tokenProvider, null);
     }
 
-    public HttpFcClientTransport(HttpClient httpClient, URI baseUrl, String clientSecret, java.util.UUID environmentId) {
+    public HttpFcClientTransport(HttpClient httpClient, URI baseUrl, TokenProvider tokenProvider, java.util.UUID environmentId) {
         this.httpClient = httpClient;
         this.baseUrl = baseUrl;
-        this.clientSecret = clientSecret;
+        this.tokenProvider = tokenProvider;
         if (environmentId == null) {
             throw new IllegalArgumentException("environmentId must not be null");
         }
@@ -176,6 +184,55 @@ public class HttpFcClientTransport implements FcClientTransport {
             }
         }
         throw new FcTransportException(errorMsg, response.statusCode(), bodyString);
+    }
+
+    @Override
+    public java.util.List<NamespaceKey> getNamespaceKey(String namespace) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(baseUrl.resolve("keys/namespace/" + namespace))
+                    .header("Authorization", authHeaderValue())
+                    .GET()
+                    .timeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() != 200) {
+                handleNon200Response(response);
+            }
+            return objectMapper.readValue(response.body(), new com.fasterxml.jackson.core.type.TypeReference<java.util.List<NamespaceKey>>() {});
+        } catch (IOException e) {
+            log.error("Network error fetching namespace key", e);
+            throw new FcNetworkException("Failed to fetch namespace key", e);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while fetching namespace key", ex);
+        }
+    }
+
+    @Override
+    public void uploadPublicKey(UserPublicKey key) {
+        try {
+            byte[] json = objectMapper.writeValueAsBytes(key);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(baseUrl.resolve("keys/public"))
+                    .header("Authorization", authHeaderValue())
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofByteArray(json))
+                    .timeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() != 200) {
+                handleNon200Response(response);
+            }
+        } catch (IOException e) {
+            log.error("Failed to upload public key", e);
+            throw new FcNetworkException("Failed to upload public key", e);
+        } catch (InterruptedException ex) {
+            log.info("Client interrupted");
+            throw new RuntimeException("Client interrupted", ex);
+        }
     }
 
     @Override

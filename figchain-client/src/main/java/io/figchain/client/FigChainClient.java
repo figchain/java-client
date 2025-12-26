@@ -26,6 +26,7 @@ import io.figchain.client.polling.FcUpdateListener;
 import io.figchain.client.polling.PollingStrategy;
 import io.figchain.client.store.FigStore;
 import io.figchain.client.transport.FcClientTransport;
+import io.figchain.client.encryption.EncryptionService;
 
 /**
  * The {@code FcClient} is the main client for interacting with the FigChain
@@ -89,6 +90,7 @@ public class FigChainClient implements FcUpdateListener {
     private final CountDownLatch initialFetchLatch = new CountDownLatch(1);
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final Map<String, List<TypedListener<?>>> typedListeners = new ConcurrentHashMap<>();
+    private final EncryptionService encryptionService;
 
     private static class TypedListener<T extends SpecificRecord> {
         final Class<T> clazz;
@@ -114,12 +116,13 @@ public class FigChainClient implements FcUpdateListener {
             long retryDelayMillis, java.util.UUID environmentId, EvaluationContext defaultContext) {
         this(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId,
                 new io.figchain.client.bootstrap.ServerBootstrapStrategy(fcClientTransport, environmentId, asOfTimestamp, maxRetries, retryDelayMillis),
-                defaultContext);
+                defaultContext, null);
     }
 
     public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor,
-            java.util.UUID environmentId, BootstrapStrategy bootstrapStrategy, EvaluationContext defaultContext) {
+            java.util.UUID environmentId, BootstrapStrategy bootstrapStrategy, EvaluationContext defaultContext,
+            EncryptionService encryptionService) {
         if (namespaces == null || namespaces.isEmpty()) {
             throw new IllegalArgumentException("At least one namespace must be configured.");
         }
@@ -133,6 +136,7 @@ public class FigChainClient implements FcUpdateListener {
         this.environmentId = environmentId;
         this.bootstrapStrategy = bootstrapStrategy;
         this.defaultContext = defaultContext;
+        this.encryptionService = encryptionService;
         log.info("FcClient initialized with namespaces: {}", namespaces);
     }
 
@@ -240,7 +244,8 @@ public class FigChainClient implements FcUpdateListener {
             EvaluationContext effectiveContext = (defaultContext != null) ? defaultContext.merge(listener.context) : (listener.context != null ? listener.context : new EvaluationContext());
             Optional<Fig> fig = rolloutEvaluator.evaluate(figFamily, effectiveContext);
             if (fig.isPresent()) {
-                byte[] bytes = toByteArray(fig.get().getPayload());
+                Fig decryptedFig = decryptFig(fig.get(), figFamily.getDefinition().getNamespace().toString());
+                byte[] bytes = toByteArray(decryptedFig.getPayload());
                 T decoded = AvroEncoding.deserializeBinary(bytes, listener.clazz);
                 listener.listener.accept(decoded);
             }
@@ -263,7 +268,8 @@ public class FigChainClient implements FcUpdateListener {
         awaitInitialFetch();
         EvaluationContext effectiveContext = (defaultContext != null) ? defaultContext.merge(context) : context;
         return figStore.getFigFamily(namespace, key)
-                .flatMap(figFamily -> rolloutEvaluator.evaluate(figFamily, effectiveContext));
+                .flatMap(figFamily -> rolloutEvaluator.evaluate(figFamily, effectiveContext))
+                .map(fig -> decryptFig(fig, namespace));
     }
 
     public Optional<Fig> getFig(String namespace, String key) {
@@ -411,5 +417,24 @@ public class FigChainClient implements FcUpdateListener {
         byte[] bytes = new byte[duplicate.remaining()];
         duplicate.get(bytes);
         return bytes;
+    }
+
+    private Fig decryptFig(Fig fig, String namespace) {
+        if (encryptionService == null || !Boolean.TRUE.equals(fig.getIsEncrypted())) {
+            return fig;
+        }
+        try {
+            byte[] decryptedPayload = encryptionService.decrypt(fig, namespace);
+            return Fig.newBuilder(fig)
+                    .setIsEncrypted(false)
+                    .setWrappedDek(null)
+                    .setEncryptionAlgorithm(null)
+                    .setKeyId(null)
+                    .setPayload(ByteBuffer.wrap(decryptedPayload))
+                    .build();
+        } catch (Exception e) {
+            log.error("Failed to decrypt fig in namespace {}", namespace, e);
+            throw new RuntimeException("Failed to decrypt fig", e);
+        }
     }
 }
