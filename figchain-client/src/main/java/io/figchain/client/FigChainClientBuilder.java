@@ -1,4 +1,8 @@
 package io.figchain.client;
+import io.figchain.client.encryption.EncryptionService;
+import io.figchain.client.transport.TokenProvider;
+import io.figchain.client.transport.SharedSecretTokenProvider;
+import io.figchain.client.transport.PrivateKeyTokenProvider;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -55,6 +59,10 @@ public class FigChainClientBuilder {
     private String vaultEndpoint;
     private boolean vaultPathStyleAccess = false;
     private String vaultPrivateKeyPath;
+    private String encryptionPrivateKeyPath;
+    private String authPrivateKeyPath;
+    private String authClientId;
+    private String tenantId;
     private ClientConfiguration.BootstrapMode bootstrapMode = ClientConfiguration.BootstrapMode.SERVER_FIRST;
 
     /**
@@ -245,8 +253,26 @@ public class FigChainClientBuilder {
         return this;
     }
 
+    public FigChainClientBuilder withEncryptionPrivateKeyPath(String encryptionPrivateKeyPath) {
+        this.encryptionPrivateKeyPath = encryptionPrivateKeyPath;
+        return this;
+    }
+
     public FigChainClientBuilder withBootstrapMode(ClientConfiguration.BootstrapMode bootstrapMode) {
         this.bootstrapMode = bootstrapMode;
+        return this;
+    }
+
+    public FigChainClientBuilder withAuthPrivateKeyPath(String authPrivateKeyPath) {
+        this.authPrivateKeyPath = authPrivateKeyPath;
+        return this;
+    }
+    public FigChainClientBuilder withAuthClientId(String authClientId) {
+        this.authClientId = authClientId;
+        return this;
+    }
+    public FigChainClientBuilder withTenantId(String tenantId) {
+        this.tenantId = tenantId;
         return this;
     }
 
@@ -283,6 +309,10 @@ public class FigChainClientBuilder {
         this.vaultEndpoint = config.getVaultEndpoint();
         this.vaultPathStyleAccess = config.isVaultPathStyleAccess();
         this.vaultPrivateKeyPath = config.getVaultPrivateKeyPath();
+        this.encryptionPrivateKeyPath = config.getEncryptionPrivateKeyPath();
+        this.authPrivateKeyPath = config.getAuthPrivateKeyPath();
+        this.authClientId = config.getAuthClientId();
+        this.tenantId = config.getTenantId();
         this.bootstrapMode = config.getBootstrapMode();
 
         return this;
@@ -380,6 +410,16 @@ public class FigChainClientBuilder {
         String envVaultKeyPath = envProvider.apply("FIGCHAIN_VAULT_PRIVATE_KEY_PATH");
         if (envVaultKeyPath != null) this.vaultPrivateKeyPath = envVaultKeyPath;
 
+        String envEncKeyPath = envProvider.apply("FIGCHAIN_ENCRYPTION_PRIVATE_KEY_PATH");
+        if (envEncKeyPath != null) this.encryptionPrivateKeyPath = envEncKeyPath;
+
+        String envAuthKeyPath = envProvider.apply("FIGCHAIN_AUTH_PRIVATE_KEY_PATH");
+        if (envAuthKeyPath != null) this.authPrivateKeyPath = envAuthKeyPath;
+        String envAuthClientId = envProvider.apply("FIGCHAIN_AUTH_CLIENT_ID");
+        if (envAuthClientId != null) this.authClientId = envAuthClientId;
+        String envTenantId = envProvider.apply("FIGCHAIN_TENANT_ID");
+        if (envTenantId != null) this.tenantId = envTenantId;
+
         String envBootstrapMode = envProvider.apply("FIGCHAIN_BOOTSTRAP_MODE");
         if (envBootstrapMode != null) this.bootstrapMode = ClientConfiguration.BootstrapMode.valueOf(envBootstrapMode);
 
@@ -397,6 +437,9 @@ public class FigChainClientBuilder {
         } if (environmentId == null) {
             throw new IllegalStateException("environmentId must be set");
         }
+        if (clientSecret == null && authPrivateKeyPath == null) {
+            throw new IllegalStateException("An authentication method must be configured. Please provide either a clientSecret or an authPrivateKeyPath.");
+        }
 
         if (figStore == null) {
             figStore = new MemoryFigStore();
@@ -410,12 +453,28 @@ public class FigChainClientBuilder {
 
         URI baseUri = URI.create(this.baseUrl);
 
+        TokenProvider tokenProvider = null;
+        if (authPrivateKeyPath != null) {
+            if (namespaces.size() > 1) {
+                throw new IllegalStateException("Private key authentication can only be used with a single namespace.");
+            }
+            try {
+                String serviceAccountId = (authClientId != null) ? authClientId : environmentId.toString();
+                String namespace = namespaces.isEmpty() ? null : namespaces.iterator().next();
+                tokenProvider = new PrivateKeyTokenProvider(authPrivateKeyPath, serviceAccountId, tenantId, namespace, null);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to load auth private key", e);
+            }
+        } else {
+            tokenProvider = new SharedSecretTokenProvider(clientSecret);
+        }
+
         FcClientTransport fcClientTransport;
         if (transport == Transport.LONG_POLLING) {
             URI lpUri = (longPollingBaseUrl != null) ? URI.create(longPollingBaseUrl) : baseUri;
-            fcClientTransport = new LongPollingFcClientTransport(httpClient, baseUri, clientSecret, lpUri, environmentId);
+            fcClientTransport = new LongPollingFcClientTransport(httpClient, baseUri, tokenProvider, lpUri, environmentId);
         } else {
-            fcClientTransport = new HttpFcClientTransport(httpClient, baseUri, clientSecret, environmentId);
+            fcClientTransport = new HttpFcClientTransport(httpClient, baseUri, tokenProvider, environmentId);
         }
 
         // Configure Bootstrap Strategy
@@ -455,7 +514,12 @@ public class FigChainClientBuilder {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         ExecutorService fetchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-        final FigChainClient fcClient = new FigChainClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId, bootstrapStrategy, defaultContext);
+        EncryptionService encryptionService = null;
+        if (encryptionPrivateKeyPath != null) {
+            encryptionService = new EncryptionService(fcClientTransport, java.nio.file.Path.of(encryptionPrivateKeyPath));
+        }
+
+        final FigChainClient fcClient = new FigChainClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId, bootstrapStrategy, defaultContext, encryptionService);
         this.updateListeners.add(fcClient);
         final FcUpdateListener broadcastListener = new BroadcastFcUpdateListener(this.updateListeners);
 

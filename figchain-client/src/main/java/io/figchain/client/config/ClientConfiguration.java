@@ -17,6 +17,8 @@ public class ClientConfiguration {
     private Set<String> namespaces = new HashSet<>();
     private String clientSecret;
     private String environmentId;
+    private String authClientId;
+    private String tenantId;
 
     // Vault (S3 Backup) Configuration
     private boolean vaultEnabled = false;
@@ -26,6 +28,8 @@ public class ClientConfiguration {
     private String vaultEndpoint;
     private boolean vaultPathStyleAccess = false;
     private String vaultPrivateKeyPath;
+    private String encryptionPrivateKeyPath;
+    private String authPrivateKeyPath;
     private BootstrapMode bootstrapMode = BootstrapMode.SERVER_FIRST;
 
     public enum BootstrapMode {
@@ -169,5 +173,33 @@ public class ClientConfiguration {
 
     public void setBootstrapMode(BootstrapMode bootstrapMode) {
         this.bootstrapMode = bootstrapMode;
+    }
+
+    public String getEncryptionPrivateKeyPath() {
+        return encryptionPrivateKeyPath;
+    }
+
+    public void setEncryptionPrivateKeyPath(String encryptionPrivateKeyPath) {
+        this.encryptionPrivateKeyPath = encryptionPrivateKeyPath;
+    }
+
+    public String getAuthPrivateKeyPath() {
+        return authPrivateKeyPath;
+    }
+
+    public void setAuthPrivateKeyPath(String authPrivateKeyPath) {
+        this.authPrivateKeyPath = authPrivateKeyPath;
+    }
+    public String getAuthClientId() {
+        return authClientId;
+    }
+    public void setAuthClientId(String authClientId) {
+        this.authClientId = authClientId;
+    }
+    public String getTenantId() {
+        return tenantId;
+    }
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
     }
 }

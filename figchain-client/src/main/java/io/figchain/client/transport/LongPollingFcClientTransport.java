@@ -37,9 +37,9 @@ public class LongPollingFcClientTransport extends HttpFcClientTransport {
      */
     private final java.util.UUID environmentId;
 
-    public LongPollingFcClientTransport(HttpClient httpClient, URI baseUrl, String clientSecret,
+    public LongPollingFcClientTransport(HttpClient httpClient, URI baseUrl, TokenProvider tokenProvider,
                                        URI longPollingBaseUrl, java.util.UUID environmentId) {
-        super(httpClient, baseUrl, clientSecret, environmentId);
+        super(httpClient, baseUrl, tokenProvider, environmentId);
         this.longPollingBaseUrl = longPollingBaseUrl;
         this.longPollingTimeout = Duration.ofSeconds(30); // 30 second long poll
         this.connectionTimeout = Duration.ofSeconds(35); // Slightly longer than long poll timeout
