@@ -27,6 +27,8 @@ import io.figchain.client.polling.PollingStrategy;
 import io.figchain.client.store.FigStore;
 import io.figchain.client.transport.FcClientTransport;
 import io.figchain.client.encryption.EncryptionService;
+import io.figchain.client.util.BufferUtils;
+import io.figchain.client.util.KeyUtils;
 
 /**
  * The {@code FcClient} is the main client for interacting with the FigChain
@@ -426,11 +428,7 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
     }
 
     private byte[] toByteArray(ByteBuffer buffer) {
-        // Duplicate to avoid modifying the original buffer's position
-        ByteBuffer duplicate = buffer.duplicate();
-        byte[] bytes = new byte[duplicate.remaining()];
-        duplicate.get(bytes);
-        return bytes;
+        return BufferUtils.toByteArray(buffer);
     }
 
     private Fig decryptFig(Fig fig, String namespace) {

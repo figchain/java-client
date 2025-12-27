@@ -84,6 +84,7 @@ public class HttpFcClientTransport implements FcClientTransport {
             throw new FcNetworkException("Failed to fetch initial data", e);
         } catch (InterruptedException ex) {
             log.info("Client interrupted");
+            Thread.currentThread().interrupt();
             throw new RuntimeException("Client interrupted", ex);
         }
     }
@@ -154,6 +155,7 @@ public class HttpFcClientTransport implements FcClientTransport {
             throw new FcNetworkException("Failed to fetch updates", e);
         } catch (InterruptedException ex) {
             log.info("Client interrupted");
+            Thread.currentThread().interrupt();
             throw new RuntimeException("Client interrupted", ex);
         }
     }
@@ -230,6 +232,7 @@ public class HttpFcClientTransport implements FcClientTransport {
             throw new FcNetworkException("Failed to upload public key", e);
         } catch (InterruptedException ex) {
             log.info("Client interrupted");
+            Thread.currentThread().interrupt();
             throw new RuntimeException("Client interrupted", ex);
         }
     }

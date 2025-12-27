@@ -26,9 +26,6 @@ public interface FcClientTransport {
     UpdateFetchResponse fetchUpdates(String namespace, String cursor);
 
     /**
-     * Shuts down the client cleanly.
-     */
-    /**
      * Fetches the Namespace Key for a given namespace.
      * @param namespace the namespace
      * @return the namespace key
@@ -41,5 +38,8 @@ public interface FcClientTransport {
      */
     void uploadPublicKey(UserPublicKey key);
 
+    /**
+     * Shuts down the client cleanly.
+     */
     void shutdown();
 }

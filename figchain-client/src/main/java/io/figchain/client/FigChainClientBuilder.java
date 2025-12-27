@@ -437,6 +437,9 @@ public class FigChainClientBuilder {
         } if (environmentId == null) {
             throw new IllegalStateException("environmentId must be set");
         }
+        if (clientSecret == null && authPrivateKeyPath == null) {
+            throw new IllegalStateException("An authentication method must be configured. Please provide either a clientSecret or an authPrivateKeyPath.");
+        }
 
         if (figStore == null) {
             figStore = new MemoryFigStore();
@@ -460,7 +463,7 @@ public class FigChainClientBuilder {
                 String namespace = namespaces.isEmpty() ? null : namespaces.iterator().next();
                 tokenProvider = new PrivateKeyTokenProvider(authPrivateKeyPath, serviceAccountId, tenantId, namespace, null);
             } catch (IOException e) {
-                 throw new RuntimeException("Failed to load auth private key", e);
+                throw new RuntimeException("Failed to load auth private key", e);
             }
         } else {
             tokenProvider = new SharedSecretTokenProvider(clientSecret);

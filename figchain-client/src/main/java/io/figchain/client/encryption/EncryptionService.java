@@ -3,6 +3,7 @@ package io.figchain.client.encryption;
 import io.figchain.avro.model.Fig;
 import io.figchain.client.dto.NamespaceKey;
 import io.figchain.client.transport.FcClientTransport;
+import io.figchain.client.util.BufferUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -29,11 +30,11 @@ public class EncryptionService {
 
     public byte[] decrypt(Fig fig, String namespace) {
         if (!Boolean.TRUE.equals(fig.getIsEncrypted())) {
-            return toByteArray(fig.getPayload());
+            return BufferUtils.toByteArray(fig.getPayload());
         }
 
         String nskId = fig.getKeyId() != null ? fig.getKeyId().toString() : null;
-        byte[] wrappedDek = toByteArray(fig.getWrappedDek());
+        byte[] wrappedDek = BufferUtils.toByteArray(fig.getWrappedDek());
 
         byte[] nsk = getNsk(namespace, nskId);
 
@@ -41,7 +42,7 @@ public class EncryptionService {
         byte[] dek = EncryptionCrypto.unwrapAesKey(wrappedDek, nsk);
 
         // Payload decrypt
-        byte[] payload = toByteArray(fig.getPayload());
+        byte[] payload = BufferUtils.toByteArray(fig.getPayload());
         return EncryptionCrypto.decryptAesGcm(payload, dek);
     }
 
@@ -68,13 +69,5 @@ public class EncryptionService {
         } catch (RuntimeException e) {
             throw new RuntimeException("Failed to decrypt NSK", e);
         }
-    }
-
-    private byte[] toByteArray(ByteBuffer buffer) {
-        if (buffer == null) return null;
-        ByteBuffer duplicate = buffer.duplicate();
-        byte[] bytes = new byte[duplicate.remaining()];
-        duplicate.get(bytes);
-        return bytes;
     }
 }
