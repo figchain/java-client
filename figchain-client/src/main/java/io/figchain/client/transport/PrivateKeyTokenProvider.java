@@ -44,21 +44,7 @@ public class PrivateKeyTokenProvider implements TokenProvider {
     }
 
     private RSAPrivateKey loadPrivateKey(String path) throws IOException {
-        try {
-            String keyContent = Files.readString(Path.of(path));
-            // Remove PEM headers/footers
-            String privateKeyPEM = keyContent
-                    .replace("-----BEGIN PRIVATE KEY-----", "")
-                    .replace("-----END PRIVATE KEY-----", "")
-                    .replaceAll("\\s", "");
-
-            byte[] encoded = Base64.getDecoder().decode(privateKeyPEM);
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-            return (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new IOException("Failed to load private key from " + path, e);
-        }
+        return io.figchain.client.util.KeyUtils.loadPrivateKey(java.nio.file.Path.of(path));
     }
 
     @Override

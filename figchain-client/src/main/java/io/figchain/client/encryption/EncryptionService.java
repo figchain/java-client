@@ -4,11 +4,12 @@ import io.figchain.avro.model.Fig;
 import io.figchain.client.dto.NamespaceKey;
 import io.figchain.client.transport.FcClientTransport;
 
-
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.security.PrivateKey;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class EncryptionService {
@@ -21,7 +22,7 @@ public class EncryptionService {
         this.transport = transport;
         try {
             this.privateKey = EncryptionCrypto.loadPrivateKey(privateKeyPath);
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new RuntimeException("Failed to load private key from " + privateKeyPath, e);
         }
     }
@@ -52,7 +53,7 @@ public class EncryptionService {
         java.util.List<NamespaceKey> nsKeys = transport.getNamespaceKey(namespace);
 
         NamespaceKey matchingKey = nsKeys.stream()
-                .filter(k -> (keyId == null && k.getKeyId() == null) || (keyId != null && keyId.equals(k.getKeyId())))
+                .filter(k -> Objects.equals(keyId, k.getKeyId()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No matching key found for namespace " + namespace + " and keyId " + keyId));
 
@@ -64,7 +65,7 @@ public class EncryptionService {
                 nskCache.put(matchingKey.getKeyId(), unwrappedNsk);
             }
             return unwrappedNsk;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new RuntimeException("Failed to decrypt NSK", e);
         }
     }

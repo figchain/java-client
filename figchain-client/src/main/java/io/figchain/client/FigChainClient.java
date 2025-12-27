@@ -72,7 +72,7 @@ import io.figchain.client.encryption.EncryptionService;
  * @see PollingStrategy
  * @see EvaluationContext
  */
-public class FigChainClient implements FcUpdateListener {
+public class FigChainClient implements FcUpdateListener, AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(FigChainClient.class);
 
@@ -154,9 +154,8 @@ public class FigChainClient implements FcUpdateListener {
             return CompletableFuture.runAsync(() -> {
                 try {
                     fetchInitialData();
-                } catch (Exception e) {
-                    log.error("Initial fetch failed", e);
-                    throw new RuntimeException("Initial fetch failed", e);
+                } catch (Throwable t) {
+                    log.error("CRITICAL: Initial fetch crashed with Throwable", t);
                 } finally {
                     initialFetchLatch.countDown();
                 }
@@ -269,7 +268,15 @@ public class FigChainClient implements FcUpdateListener {
         EvaluationContext effectiveContext = (defaultContext != null) ? defaultContext.merge(context) : context;
         return figStore.getFigFamily(namespace, key)
                 .flatMap(figFamily -> rolloutEvaluator.evaluate(figFamily, effectiveContext))
-                .map(fig -> decryptFig(fig, namespace));
+                .map(fig -> {
+                    try {
+                        return decryptFig(fig, namespace);
+                    } catch (RuntimeException e) {
+                        log.error("Failed to decrypt fig with key '{}' in namespace '{}'", key, namespace, e);
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull);
     }
 
     public Optional<Fig> getFig(String namespace, String key) {
@@ -357,7 +364,7 @@ public class FigChainClient implements FcUpdateListener {
                 .add(new TypedListener<>(clazz, context, listener));
     }
 
-    private void awaitInitialFetch() {
+    public void awaitInitialFetch() {
         try {
             initialFetchLatch.await();
         } catch (InterruptedException e) {
@@ -436,5 +443,10 @@ public class FigChainClient implements FcUpdateListener {
             log.error("Failed to decrypt fig in namespace {}", namespace, e);
             throw new RuntimeException("Failed to decrypt fig", e);
         }
+    }
+
+    @Override
+    public void close() {
+        stop();
     }
 }

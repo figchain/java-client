@@ -50,7 +50,6 @@ public class HttpFcClientTransport implements FcClientTransport {
             if (log.isDebugEnabled()) {
                 log.debug("InitialFetchRequest (transport) for namespace {}: {}", namespace, request);
             }
-
             byte[] avroBytes = AvroEncoding.serializeWithSchema(request);
 
             HttpRequest httpRequest = HttpRequest.newBuilder()
@@ -190,7 +189,7 @@ public class HttpFcClientTransport implements FcClientTransport {
     public java.util.List<NamespaceKey> getNamespaceKey(String namespace) {
         try {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(baseUrl.resolve("keys/namespace/" + namespace))
+                    .uri(baseUrl.resolve("keys/namespace/" + java.net.URLEncoder.encode(namespace, java.nio.charset.StandardCharsets.UTF_8)))
                     .header("Authorization", authHeaderValue())
                     .GET()
                     .timeout(Duration.ofSeconds(5))

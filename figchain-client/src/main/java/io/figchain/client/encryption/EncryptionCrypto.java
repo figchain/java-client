@@ -14,6 +14,13 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import javax.crypto.spec.OAEPParameterSpec;
 import javax.crypto.spec.PSource;
+import io.figchain.client.util.KeyUtils;
+import java.security.NoSuchAlgorithmException;
+import javax.crypto.NoSuchPaddingException;
+import java.security.InvalidKeyException;
+import java.security.InvalidAlgorithmParameterException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.BadPaddingException;
 
 public class EncryptionCrypto {
 
@@ -26,21 +33,7 @@ public class EncryptionCrypto {
     private static final int IV_LENGTH_BYTES = 12;
 
     public static PrivateKey loadPrivateKey(Path path) throws IOException {
-        String keyContent = Files.readString(path, StandardCharsets.UTF_8);
-        keyContent = keyContent
-                .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replace("-----END PRIVATE KEY-----", "")
-                .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-                .replace("-----END RSA PRIVATE KEY-----", "")
-                .replaceAll("\\s", "");
-
-        try {
-            byte[] keyBytes = Base64.getDecoder().decode(keyContent);
-            KeyFactory keyFactory = KeyFactory.getInstance(RSA_ALGORITHM);
-            return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
-        } catch (Exception e) {
-            throw new IOException("Failed to load private key", e);
-        }
+        return KeyUtils.loadPrivateKey(path);
     }
 
     public static byte[] decryptRsaOaep(byte[] encryptedBytes, PrivateKey privateKey) {
@@ -51,7 +44,7 @@ public class EncryptionCrypto {
             );
             cipher.init(Cipher.DECRYPT_MODE, privateKey, oaepParams);
             return cipher.doFinal(encryptedBytes);
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to decrypt RSA OAEP", e);
         }
     }
@@ -62,7 +55,7 @@ public class EncryptionCrypto {
             SecretKeySpec keySpec = new SecretKeySpec(kek, AES_ALGORITHM);
             cipher.init(Cipher.UNWRAP_MODE, keySpec);
             return cipher.unwrap(wrappedKey, AES_ALGORITHM, Cipher.SECRET_KEY).getEncoded();
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException e) {
             throw new RuntimeException("Failed to unwrap AES Key", e);
         }
     }
@@ -86,7 +79,7 @@ public class EncryptionCrypto {
 
             cipher.init(Cipher.DECRYPT_MODE, keySpec, spec);
             return cipher.doFinal(ciphertext);
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to decrypt AES GCM", e);
         }
     }

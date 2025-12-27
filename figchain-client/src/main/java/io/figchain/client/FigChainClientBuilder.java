@@ -452,6 +452,9 @@ public class FigChainClientBuilder {
 
         TokenProvider tokenProvider = null;
         if (authPrivateKeyPath != null) {
+            if (namespaces.size() > 1) {
+                throw new IllegalStateException("Private key authentication can only be used with a single namespace.");
+            }
             try {
                 String serviceAccountId = (authClientId != null) ? authClientId : environmentId.toString();
                 String namespace = namespaces.isEmpty() ? null : namespaces.iterator().next();
