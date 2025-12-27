@@ -156,6 +156,13 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
                     fetchInitialData();
                 } catch (Throwable t) {
                     log.error("CRITICAL: Initial fetch crashed with Throwable", t);
+                    if (t instanceof RuntimeException) {
+                        throw (RuntimeException) t;
+                    } else if (t instanceof Error) {
+                        throw (Error) t;
+                    } else {
+                        throw new RuntimeException("Initial fetch failed", t);
+                    }
                 } finally {
                     initialFetchLatch.countDown();
                 }
