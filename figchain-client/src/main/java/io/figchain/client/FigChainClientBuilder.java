@@ -61,7 +61,9 @@ public class FigChainClientBuilder {
     private String vaultPrivateKeyPath;
     private String encryptionPrivateKeyPath;
     private String authPrivateKeyPath;
+    private String authPrivateKeyPem;
     private String authClientId;
+    private String authCredentialId;
     private String tenantId;
     private ClientConfiguration.BootstrapMode bootstrapMode = ClientConfiguration.BootstrapMode.SERVER_FIRST;
 
@@ -271,8 +273,53 @@ public class FigChainClientBuilder {
         this.authClientId = authClientId;
         return this;
     }
+    public FigChainClientBuilder withAuthCredentialId(String authCredentialId) {
+        this.authCredentialId = authCredentialId;
+        return this;
+    }
+    public FigChainClientBuilder withAuthPrivateKeyPem(String authPrivateKeyPem) {
+        this.authPrivateKeyPem = authPrivateKeyPem;
+        return this;
+    }
     public FigChainClientBuilder withTenantId(String tenantId) {
         this.tenantId = tenantId;
+        return this;
+    }
+
+
+    /**
+     * Loads configuration from a JSON configuration file (client-config.json).
+     *
+     * @param filePath the path to the JSON file
+     * @return this builder
+     * @throws IOException if the file cannot be read or parsed
+     */
+    public FigChainClientBuilder fromConfig(java.nio.file.Path filePath) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(); // Default mapper handles JSON
+        com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(filePath.toFile());
+
+        if (node.has("namespace")) {
+            this.namespaces.add(node.get("namespace").asText());
+        }
+        if (node.has("namespaces") && node.get("namespaces").isArray()) {
+            for (com.fasterxml.jackson.databind.JsonNode nsNode : node.get("namespaces")) {
+                this.namespaces.add(nsNode.asText());
+            }
+        }
+
+        if (node.has("credentialId")) {
+            this.authCredentialId = node.get("credentialId").asText();
+        }
+        if (node.has("privateKey")) {
+            this.authPrivateKeyPem = node.get("privateKey").asText();
+        }
+        if (node.has("tenantId")) {
+            this.tenantId = node.get("tenantId").asText();
+        }
+        if (node.has("environmentId")) {
+            this.environmentId = java.util.UUID.fromString(node.get("environmentId").asText());
+        }
+
         return this;
     }
 
@@ -437,8 +484,8 @@ public class FigChainClientBuilder {
         } if (environmentId == null) {
             throw new IllegalStateException("environmentId must be set");
         }
-        if (clientSecret == null && authPrivateKeyPath == null) {
-            throw new IllegalStateException("An authentication method must be configured. Please provide either a clientSecret or an authPrivateKeyPath.");
+        if (clientSecret == null && authPrivateKeyPath == null && authPrivateKeyPem == null) {
+            throw new IllegalStateException("An authentication method must be configured. Please provide either a clientSecret, authPrivateKeyPath or load from config.");
         }
 
         if (figStore == null) {
@@ -454,14 +501,23 @@ public class FigChainClientBuilder {
         URI baseUri = URI.create(this.baseUrl);
 
         TokenProvider tokenProvider = null;
-        if (authPrivateKeyPath != null) {
+        if (authPrivateKeyPath != null || authPrivateKeyPem != null) {
             if (namespaces.size() > 1) {
-                throw new IllegalStateException("Private key authentication can only be used with a single namespace.");
+                throw new IllegalStateException("Private key authentication can only be used with a single namespace");
             }
             try {
-                String serviceAccountId = (authClientId != null) ? authClientId : environmentId.toString();
+                String serviceAccountId = (authClientId != null) ? authClientId
+                        : (authCredentialId != null) ? authCredentialId : environmentId.toString();
                 String namespace = namespaces.isEmpty() ? null : namespaces.iterator().next();
-                tokenProvider = new PrivateKeyTokenProvider(authPrivateKeyPath, serviceAccountId, tenantId, namespace, null);
+
+                java.security.interfaces.RSAPrivateKey pk;
+                if (authPrivateKeyPem != null) {
+                    pk = io.figchain.client.util.KeyUtils.parsePrivateKey(authPrivateKeyPem);
+                } else {
+                    pk = io.figchain.client.util.KeyUtils.loadPrivateKey(java.nio.file.Path.of(authPrivateKeyPath));
+                }
+
+                tokenProvider = new PrivateKeyTokenProvider(pk, serviceAccountId, tenantId, namespace, authCredentialId);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to load auth private key", e);
             }

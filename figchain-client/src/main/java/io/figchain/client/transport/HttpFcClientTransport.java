@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import io.figchain.client.AvroEncoding;
 import io.figchain.client.dto.NamespaceKey;
+import io.figchain.client.dto.Envelope;
 import io.figchain.client.dto.UserPublicKey;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
@@ -17,6 +18,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 public class HttpFcClientTransport implements FcClientTransport {
 
@@ -190,8 +193,9 @@ public class HttpFcClientTransport implements FcClientTransport {
     @Override
     public java.util.List<NamespaceKey> getNamespaceKey(String namespace) {
         try {
+            URI uri = URI.create(baseUrl.toString() + (baseUrl.toString().endsWith("/") ? "" : "/") + "envelopes?namespace=" + java.net.URLEncoder.encode(namespace, java.nio.charset.StandardCharsets.UTF_8));
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(baseUrl.resolve("keys/namespace/" + java.net.URLEncoder.encode(namespace, java.nio.charset.StandardCharsets.UTF_8)))
+                    .uri(uri)
                     .header("Authorization", authHeaderValue())
                     .GET()
                     .timeout(Duration.ofSeconds(5))
@@ -201,7 +205,19 @@ public class HttpFcClientTransport implements FcClientTransport {
             if (response.statusCode() != 200) {
                 handleNon200Response(response);
             }
-            return objectMapper.readValue(response.body(), new com.fasterxml.jackson.core.type.TypeReference<java.util.List<NamespaceKey>>() {});
+            java.util.List<Envelope> envelopes = objectMapper.readValue(response.body(), new com.fasterxml.jackson.core.type.TypeReference<java.util.List<Envelope>>() {});
+
+            return envelopes.stream()
+                .filter(e -> e.getKey() != null && namespace.equals(e.getKey().getNamespaceId()))
+                .map(e -> {
+                    NamespaceKey key = new NamespaceKey();
+                    key.setWrappedKey(e.getEncryptedBlob());
+                    Integer nskVersion = e.getKey().getNskVersion();
+                    key.setKeyId(nskVersion == null ? null : nskVersion.toString());
+                    return key;
+                })
+                .collect(Collectors.toList());
+
         } catch (IOException e) {
             log.error("Network error fetching namespace key", e);
             throw new FcNetworkException("Failed to fetch namespace key", e);

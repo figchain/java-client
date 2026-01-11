@@ -26,12 +26,17 @@ public class E2EMain {
         String authKeyPath = System.getProperty("authKeyPath");
         String authClientId = System.getProperty("authClientId");
         String clientSecret = System.getProperty("clientSecret");
+        String configPath = System.getProperty("configPath");
 
         FigChainClientBuilder builder = new FigChainClientBuilder()
                 .withBaseUrl(baseUrl)
                 .withEnvironmentId(UUID.fromString(envId))
                 .withDefaultContext(new EvaluationContext())
                 .withTenantId(tenantId);
+
+        if (configPath != null && !configPath.isEmpty()) {
+            builder.fromConfig(java.nio.file.Path.of(configPath));
+        }
 
         if (namespace != null && !namespace.isEmpty()) {
             builder.withNamespaces(java.util.Set.of(namespace));
@@ -40,8 +45,10 @@ public class E2EMain {
         if (authKeyPath != null && !authKeyPath.isEmpty()) {
             builder.withAuthPrivateKeyPath(authKeyPath)
                    .withAuthClientId(authClientId);
-        } else {
+        } else if (clientSecret != null && !clientSecret.isEmpty()) {
             builder.withClientSecret(clientSecret);
+        } else if (configPath == null) {
+            throw new RuntimeException("No credential found");
         }
 
         if (encKeyPath != null && !encKeyPath.isEmpty()) {
