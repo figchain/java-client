@@ -252,7 +252,7 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
             EvaluationContext effectiveContext = (defaultContext != null) ? defaultContext.merge(listener.context) : (listener.context != null ? listener.context : new EvaluationContext());
             Optional<Fig> fig = rolloutEvaluator.evaluate(figFamily, effectiveContext);
             if (fig.isPresent()) {
-                Fig decryptedFig = decryptFig(fig.get(), figFamily.getDefinition().getNamespace().toString());
+                Fig decryptedFig = decryptFig(fig.get(), figFamily.getDefinition().getNamespace().toString(), figFamily.getDefinition().getKey().toString());
                 byte[] bytes = toByteArray(decryptedFig.getPayload());
                 T decoded = AvroEncoding.deserializeBinary(bytes, listener.clazz);
                 listener.listener.accept(decoded);
@@ -279,7 +279,7 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
                 .flatMap(figFamily -> rolloutEvaluator.evaluate(figFamily, effectiveContext))
                 .map(fig -> {
                     try {
-                        return decryptFig(fig, namespace);
+                        return decryptFig(fig, namespace, key);
                     } catch (RuntimeException e) {
                         log.error("Failed to decrypt fig with key '{}' in namespace '{}'", key, namespace, e);
                         return null;
@@ -431,9 +431,12 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
         return BufferUtils.toByteArray(buffer);
     }
 
-    private Fig decryptFig(Fig fig, String namespace) {
-        if (encryptionService == null || !Boolean.TRUE.equals(fig.getIsEncrypted())) {
+    private Fig decryptFig(Fig fig, String namespace, String key) {
+        if (!Boolean.TRUE.equals(fig.getIsEncrypted())) {
             return fig;
+        }
+        if (encryptionService == null) {
+            throw new RuntimeException("Received encrypted fig for key '" + key + "' but client is not configured for decryption");
         }
         try {
             byte[] decryptedPayload = encryptionService.decrypt(fig, namespace);

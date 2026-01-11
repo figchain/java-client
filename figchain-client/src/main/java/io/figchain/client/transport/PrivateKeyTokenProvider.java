@@ -30,18 +30,38 @@ public class PrivateKeyTokenProvider implements TokenProvider {
     }
 
     public PrivateKeyTokenProvider(
+            java.security.interfaces.RSAPrivateKey privateKey,
+            String serviceAccountId,
+            String tenantId,
+            String namespace,
+            String keyId) {
+        this(privateKey, serviceAccountId, tenantId, namespace, keyId, 600_000);
+    }
+
+    public PrivateKeyTokenProvider(
+            java.security.interfaces.RSAPrivateKey privateKey,
+            String serviceAccountId,
+            String tenantId,
+            String namespace,
+            String keyId,
+            long tokenTtlMillis) {
+        this.serviceAccountId = serviceAccountId;
+        this.tenantId = tenantId;
+        this.namespace = namespace;
+        this.keyId = keyId;
+        this.tokenTtlMillis = tokenTtlMillis;
+        this.privateKey = privateKey;
+    }
+
+    public PrivateKeyTokenProvider(
             String privateKeyPath,
             String serviceAccountId,
             String tenantId,
             String namespace,
             String keyId,
             long tokenTtlMillis) throws IOException {
-        this.serviceAccountId = serviceAccountId;
-        this.tenantId = tenantId;
-        this.namespace = namespace;
-        this.keyId = keyId;
-        this.tokenTtlMillis = tokenTtlMillis;
-        this.privateKey = loadPrivateKey(privateKeyPath);
+        this(io.figchain.client.util.KeyUtils.loadPrivateKey(java.nio.file.Path.of(privateKeyPath)),
+            serviceAccountId, tenantId, namespace, keyId, tokenTtlMillis);
     }
 
     private RSAPrivateKey loadPrivateKey(String path) throws IOException {
