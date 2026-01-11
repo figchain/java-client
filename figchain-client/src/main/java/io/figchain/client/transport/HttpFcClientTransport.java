@@ -193,8 +193,9 @@ public class HttpFcClientTransport implements FcClientTransport {
     @Override
     public java.util.List<NamespaceKey> getNamespaceKey(String namespace) {
         try {
+            URI uri = URI.create(baseUrl.toString() + (baseUrl.toString().endsWith("/") ? "" : "/") + "envelopes?namespace=" + java.net.URLEncoder.encode(namespace, java.nio.charset.StandardCharsets.UTF_8));
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(baseUrl.resolve("envelopes"))
+                    .uri(uri)
                     .header("Authorization", authHeaderValue())
                     .GET()
                     .timeout(Duration.ofSeconds(5))
@@ -207,11 +208,12 @@ public class HttpFcClientTransport implements FcClientTransport {
             java.util.List<Envelope> envelopes = objectMapper.readValue(response.body(), new com.fasterxml.jackson.core.type.TypeReference<java.util.List<Envelope>>() {});
 
             return envelopes.stream()
-                .filter(e -> e.getKey().getNamespaceId().equals(namespace))
+                .filter(e -> e.getKey() != null && namespace.equals(e.getKey().getNamespaceId()))
                 .map(e -> {
                     NamespaceKey key = new NamespaceKey();
                     key.setWrappedKey(e.getEncryptedBlob());
-                    key.setKeyId(String.valueOf(e.getKey().getNskVersion()));
+                    Integer nskVersion = e.getKey().getNskVersion();
+                    key.setKeyId(nskVersion == null ? null : nskVersion.toString());
                     return key;
                 })
                 .collect(Collectors.toList());

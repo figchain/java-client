@@ -301,11 +301,20 @@ public class FigChainClientBuilder {
         if (node.has("namespace")) {
             this.namespaces.add(node.get("namespace").asText());
         }
+        if (node.has("namespaces") && node.get("namespaces").isArray()) {
+            for (com.fasterxml.jackson.databind.JsonNode nsNode : node.get("namespaces")) {
+                this.namespaces.add(nsNode.asText());
+            }
+        }
+
         if (node.has("credentialId")) {
             this.authCredentialId = node.get("credentialId").asText();
         }
         if (node.has("privateKey")) {
             this.authPrivateKeyPem = node.get("privateKey").asText();
+        }
+        if (node.has("tenantId")) {
+            this.tenantId = node.get("tenantId").asText();
         }
         if (node.has("environmentId")) {
             this.environmentId = java.util.UUID.fromString(node.get("environmentId").asText());
@@ -494,13 +503,11 @@ public class FigChainClientBuilder {
         TokenProvider tokenProvider = null;
         if (authPrivateKeyPath != null || authPrivateKeyPem != null) {
             if (namespaces.size() > 1) {
-                // Strict check disabled for now
+                throw new IllegalStateException("Private key authentication can only be used with a single namespace");
             }
             try {
-                String serviceAccountId = authClientId;
-                if (serviceAccountId == null) {
-                    serviceAccountId = (authCredentialId != null) ? authCredentialId : environmentId.toString();
-                }
+                String serviceAccountId = (authClientId != null) ? authClientId
+                        : (authCredentialId != null) ? authCredentialId : environmentId.toString();
                 String namespace = namespaces.isEmpty() ? null : namespaces.iterator().next();
 
                 java.security.interfaces.RSAPrivateKey pk;
