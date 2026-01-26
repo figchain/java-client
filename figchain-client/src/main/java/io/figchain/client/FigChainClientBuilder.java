@@ -4,6 +4,9 @@ import io.figchain.client.transport.TokenProvider;
 import io.figchain.client.transport.SharedSecretTokenProvider;
 import io.figchain.client.transport.PrivateKeyTokenProvider;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.figchain.client.backup.S3BackupService;
@@ -43,6 +46,8 @@ import java.util.concurrent.ExecutorService;
  * A builder for creating {@link FigChainClient} instances.
  */
 public class FigChainClientBuilder {
+
+    private static final Logger log = LoggerFactory.getLogger(FigChainClientBuilder.class);
 
     private FigStore figStore;
     private RolloutEvaluator rolloutEvaluator;
@@ -593,6 +598,7 @@ public class FigChainClientBuilder {
             try {
                 encryptionService = new EncryptionService(fcClientTransport, authPrivateKey.trim());
             } catch (Exception e) {
+                log.warn("Failed to initialize encryption service with auth private key, proceeding without it.", e);
             }
         }
 
