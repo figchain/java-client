@@ -94,7 +94,12 @@ public class LongPollingFcClientTransport extends HttpFcClientTransport {
                     throw new IOException("Unexpected response code: " + response.statusCode());
                 }
             } catch (IOException e) {
-                log.error("Failed to fetch updates via long polling for namespace: {}", namespace, e);
+                String msg = e.getMessage();
+                if (msg != null && (msg.contains("connection closed") || msg.contains("header parser received no bytes"))) {
+                    log.debug("Long polling connection closed (likely shutdown) for namespace: {}", namespace, e);
+                } else {
+                    log.error("Failed to fetch updates via long polling for namespace: {}", namespace, e);
+                }
                 throw new RuntimeException(e);
             } catch (InterruptedException ex) {
                 log.info("Long polling interrupted for namespace: {}", namespace);

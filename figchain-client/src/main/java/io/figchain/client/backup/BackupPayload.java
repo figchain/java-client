@@ -1,4 +1,4 @@
-package io.figchain.client.vault;
+package io.figchain.client.backup;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.figchain.avro.model.FigFamily;
@@ -6,7 +6,7 @@ import io.figchain.avro.model.FigFamily;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class VaultPayload {
+public class BackupPayload {
 
     private String tenantId;
     private String generatedAt;

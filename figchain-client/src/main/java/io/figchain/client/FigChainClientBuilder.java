@@ -6,6 +6,13 @@ import io.figchain.client.transport.PrivateKeyTokenProvider;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.figchain.client.backup.S3BackupService;
+import io.figchain.client.backup.S3EnvelopeProvider;
+import io.figchain.client.bootstrap.BootstrapStrategy;
+import io.figchain.client.bootstrap.FallbackServerFirstStrategy;
+import io.figchain.client.bootstrap.HybridS3BackupFirstStrategy;
+import io.figchain.client.bootstrap.S3BackupBootstrapStrategy;
+import io.figchain.client.bootstrap.ServerBootstrapStrategy;
 import io.figchain.client.config.ClientConfiguration;
 import io.figchain.client.store.FigStore;
 import io.figchain.client.store.MemoryFigStore;
@@ -52,16 +59,14 @@ public class FigChainClientBuilder {
     private Transport transport = Transport.LONG_POLLING;
     private final List<FcUpdateListener> updateListeners = new ArrayList<>();
     private EvaluationContext defaultContext = new EvaluationContext();
-    private boolean vaultEnabled = false;
-    private String vaultBucket;
-    private String vaultPrefix = "";
-    private String vaultRegion = "us-east-1";
-    private String vaultEndpoint;
-    private boolean vaultPathStyleAccess = false;
-    private String vaultPrivateKeyPath;
-    private String encryptionPrivateKeyPath;
-    private String authPrivateKeyPath;
-    private String authPrivateKeyPem;
+    private boolean s3BackupEnabled = false;
+    private String s3BackupBucket;
+    private String s3BackupPrefix = "";
+    private String s3BackupRegion = "us-east-1";
+    private String s3BackupEndpoint;
+    private boolean s3BackupPathStyleAccess = false;
+    private String encryptionPrivateKey;
+    private String authPrivateKey;
     private String authClientId;
     private String authCredentialId;
     private String tenantId;
@@ -220,43 +225,38 @@ public class FigChainClientBuilder {
         return this;
     }
 
-    public FigChainClientBuilder withVaultEnabled(boolean vaultEnabled) {
-        this.vaultEnabled = vaultEnabled;
+    public FigChainClientBuilder withS3BackupEnabled(boolean s3BackupEnabled) {
+        this.s3BackupEnabled = s3BackupEnabled;
         return this;
     }
 
-    public FigChainClientBuilder withVaultBucket(String vaultBucket) {
-        this.vaultBucket = vaultBucket;
+    public FigChainClientBuilder withS3BackupBucket(String vaultBucket) {
+        this.s3BackupBucket = vaultBucket;
         return this;
     }
 
-    public FigChainClientBuilder withVaultPrefix(String vaultPrefix) {
-        this.vaultPrefix = vaultPrefix;
+    public FigChainClientBuilder withS3BackupPrefix(String vaultPrefix) {
+        this.s3BackupPrefix = vaultPrefix;
         return this;
     }
 
-    public FigChainClientBuilder withVaultRegion(String vaultRegion) {
-        this.vaultRegion = vaultRegion;
+    public FigChainClientBuilder withS3BackupRegion(String vaultRegion) {
+        this.s3BackupRegion = vaultRegion;
         return this;
     }
 
-    public FigChainClientBuilder withVaultEndpoint(String vaultEndpoint) {
-        this.vaultEndpoint = vaultEndpoint;
+    public FigChainClientBuilder withS3BackupEndpoint(String vaultEndpoint) {
+        this.s3BackupEndpoint = vaultEndpoint;
         return this;
     }
 
-    public FigChainClientBuilder withVaultPathStyleAccess(boolean vaultPathStyleAccess) {
-        this.vaultPathStyleAccess = vaultPathStyleAccess;
+    public FigChainClientBuilder withS3BackupPathStyleAccess(boolean vaultPathStyleAccess) {
+        this.s3BackupPathStyleAccess = vaultPathStyleAccess;
         return this;
     }
 
-    public FigChainClientBuilder withVaultPrivateKeyPath(String vaultPrivateKeyPath) {
-        this.vaultPrivateKeyPath = vaultPrivateKeyPath;
-        return this;
-    }
-
-    public FigChainClientBuilder withEncryptionPrivateKeyPath(String encryptionPrivateKeyPath) {
-        this.encryptionPrivateKeyPath = encryptionPrivateKeyPath;
+    public FigChainClientBuilder withEncryptionPrivateKey(String encryptionPrivateKey) {
+        this.encryptionPrivateKey = encryptionPrivateKey;
         return this;
     }
 
@@ -265,10 +265,6 @@ public class FigChainClientBuilder {
         return this;
     }
 
-    public FigChainClientBuilder withAuthPrivateKeyPath(String authPrivateKeyPath) {
-        this.authPrivateKeyPath = authPrivateKeyPath;
-        return this;
-    }
     public FigChainClientBuilder withAuthClientId(String authClientId) {
         this.authClientId = authClientId;
         return this;
@@ -277,8 +273,8 @@ public class FigChainClientBuilder {
         this.authCredentialId = authCredentialId;
         return this;
     }
-    public FigChainClientBuilder withAuthPrivateKeyPem(String authPrivateKeyPem) {
-        this.authPrivateKeyPem = authPrivateKeyPem;
+    public FigChainClientBuilder withAuthPrivateKey(String authPrivateKey) {
+        this.authPrivateKey = authPrivateKey;
         return this;
     }
     public FigChainClientBuilder withTenantId(String tenantId) {
@@ -306,18 +302,45 @@ public class FigChainClientBuilder {
                 this.namespaces.add(nsNode.asText());
             }
         }
-
         if (node.has("credentialId")) {
             this.authCredentialId = node.get("credentialId").asText();
         }
         if (node.has("privateKey")) {
-            this.authPrivateKeyPem = node.get("privateKey").asText();
+            this.authPrivateKey = node.get("privateKey").asText();
+        }
+        if (node.has("authPrivateKey")) {
+            this.authPrivateKey = node.get("authPrivateKey").asText();
+        }
+        if (node.has("encryptionPrivateKey")) {
+            this.encryptionPrivateKey = node.get("encryptionPrivateKey").asText();
         }
         if (node.has("tenantId")) {
             this.tenantId = node.get("tenantId").asText();
         }
         if (node.has("environmentId")) {
             this.environmentId = java.util.UUID.fromString(node.get("environmentId").asText());
+        }
+        if (node.has("s3BackupEnabled")) {
+            this.s3BackupEnabled = node.get("s3BackupEnabled").asBoolean();
+        }
+        if (node.has("s3BackupBucket")) {
+            this.s3BackupBucket = node.get("s3BackupBucket").asText();
+        }
+        if (node.has("s3BackupPrefix")) {
+            this.s3BackupPrefix = node.get("s3BackupPrefix").asText();
+        }
+        if (node.has("s3BackupRegion")) {
+            this.s3BackupRegion = node.get("s3BackupRegion").asText();
+        }
+        if (node.has("s3BackupEndpoint")) {
+            this.s3BackupEndpoint = node.get("s3BackupEndpoint").asText();
+        }
+        if (node.has("bootstrapMode")) {
+            try {
+                this.bootstrapMode = ClientConfiguration.BootstrapMode.valueOf(node.get("bootstrapMode").asText());
+            } catch (Exception e) {
+                throw new RuntimeException("Invalid bootstrap mode: " + node.get("bootstrapMode").asText(), e);
+            }
         }
 
         return this;
@@ -348,16 +371,16 @@ public class FigChainClientBuilder {
         if (config.getEnvironmentId() != null) {
             this.environmentId = java.util.UUID.fromString(config.getEnvironmentId());
         }
-
-        this.vaultEnabled = config.isVaultEnabled();
-        this.vaultBucket = config.getVaultBucket();
-        this.vaultPrefix = config.getVaultPrefix();
-        this.vaultRegion = config.getVaultRegion();
-        this.vaultEndpoint = config.getVaultEndpoint();
-        this.vaultPathStyleAccess = config.isVaultPathStyleAccess();
-        this.vaultPrivateKeyPath = config.getVaultPrivateKeyPath();
-        this.encryptionPrivateKeyPath = config.getEncryptionPrivateKeyPath();
-        this.authPrivateKeyPath = config.getAuthPrivateKeyPath();
+        this.s3BackupEnabled = config.isS3BackupEnabled();
+        this.s3BackupBucket = config.getS3BackupBucket();
+        this.s3BackupPrefix = config.getS3BackupPrefix();
+        this.s3BackupRegion = config.getS3BackupRegion();
+        this.s3BackupEndpoint = config.getS3BackupEndpoint();
+        this.s3BackupPathStyleAccess = config.isS3BackupPathStyleAccess();
+        this.encryptionPrivateKey = config.getEncryptionPrivateKey();
+        if (config.getAuthPrivateKey() != null) {
+            this.authPrivateKey = config.getAuthPrivateKey();
+        }
         this.authClientId = config.getAuthClientId();
         this.tenantId = config.getTenantId();
         this.bootstrapMode = config.getBootstrapMode();
@@ -379,13 +402,13 @@ public class FigChainClientBuilder {
      *   <li>FIGCHAIN_MAX_RETRIES</li>
      *   <li>FIGCHAIN_RETRY_DELAY_MS</li>
      *   <li>FIGCHAIN_AS_OF_TIMESTAMP</li>
-     *   <li>FIGCHAIN_VAULT_ENABLED</li>
-     *   <li>FIGCHAIN_VAULT_BUCKET</li>
-     *   <li>FIGCHAIN_VAULT_PREFIX</li>
-     *   <li>FIGCHAIN_VAULT_REGION</li>
-     *   <li>FIGCHAIN_VAULT_ENDPOINT</li>
-     *   <li>FIGCHAIN_VAULT_PATH_STYLE_ACCESS</li>
-     *   <li>FIGCHAIN_VAULT_PRIVATE_KEY_PATH</li>
+     *   <li>FIGCHAIN_S3_BACKUP_ENABLED</li>
+     *   <li>FIGCHAIN_S3_BACKUP_BUCKET</li>
+     *   <li>FIGCHAIN_S3_BACKUP_PREFIX</li>
+     *   <li>FIGCHAIN_S3_BACKUP_REGION</li>
+     *   <li>FIGCHAIN_S3_BACKUP_ENDPOINT</li>
+     *   <li>FIGCHAIN_S3_BACKUP_PATH_STYLE_ACCESS</li>
+     *   <li>FIGCHAIN_S3_BACKUP_PRIVATE_KEY_PATH</li>
      *   <li>FIGCHAIN_BOOTSTRAP_MODE</li>
      * </ul>
      *
@@ -422,6 +445,11 @@ public class FigChainClientBuilder {
                     this.namespaces.add(n.trim());
                 }
             }
+        } else {
+            String envNamespace = envProvider.apply("FIGCHAIN_NAMESPACE");
+            if (envNamespace != null && !envNamespace.trim().isEmpty()) {
+                this.namespaces.add(envNamespace.trim());
+            }
         }
 
         String envPollingInterval = envProvider.apply("FIGCHAIN_POLLING_INTERVAL_MS");
@@ -436,32 +464,30 @@ public class FigChainClientBuilder {
         String envAsOf = envProvider.apply("FIGCHAIN_AS_OF_TIMESTAMP");
         if (envAsOf != null) this.asOfTimestamp = envAsOf;
 
-        String envVaultEnabled = envProvider.apply("FIGCHAIN_VAULT_ENABLED");
-        if (envVaultEnabled != null) this.vaultEnabled = Boolean.parseBoolean(envVaultEnabled);
+        String envVaultEnabled = envProvider.apply("FIGCHAIN_S3_BACKUP_ENABLED");
+        if (envVaultEnabled != null) this.s3BackupEnabled = Boolean.parseBoolean(envVaultEnabled);
 
-        String envVaultBucket = envProvider.apply("FIGCHAIN_VAULT_BUCKET");
-        if (envVaultBucket != null) this.vaultBucket = envVaultBucket;
+        String envVaultBucket = envProvider.apply("FIGCHAIN_S3_BACKUP_BUCKET");
+        if (envVaultBucket != null) this.s3BackupBucket = envVaultBucket;
 
-        String envVaultPrefix = envProvider.apply("FIGCHAIN_VAULT_PREFIX");
-        if (envVaultPrefix != null) this.vaultPrefix = envVaultPrefix;
+        String envVaultPrefix = envProvider.apply("FIGCHAIN_S3_BACKUP_PREFIX");
+        if (envVaultPrefix != null) this.s3BackupPrefix = envVaultPrefix;
 
-        String envVaultRegion = envProvider.apply("FIGCHAIN_VAULT_REGION");
-        if (envVaultRegion != null) this.vaultRegion = envVaultRegion;
+        String envVaultRegion = envProvider.apply("FIGCHAIN_S3_BACKUP_REGION");
+        if (envVaultRegion != null) this.s3BackupRegion = envVaultRegion;
 
-        String envVaultEndpoint = envProvider.apply("FIGCHAIN_VAULT_ENDPOINT");
-        if (envVaultEndpoint != null) this.vaultEndpoint = envVaultEndpoint;
+        String envVaultEndpoint = envProvider.apply("FIGCHAIN_S3_BACKUP_ENDPOINT");
+        if (envVaultEndpoint != null) this.s3BackupEndpoint = envVaultEndpoint;
 
-        String envVaultPathStyle = envProvider.apply("FIGCHAIN_VAULT_PATH_STYLE_ACCESS");
-        if (envVaultPathStyle != null) this.vaultPathStyleAccess = Boolean.parseBoolean(envVaultPathStyle);
+        String envVaultPathStyle = envProvider.apply("FIGCHAIN_S3_BACKUP_PATH_STYLE_ACCESS");
+        if (envVaultPathStyle != null) this.s3BackupPathStyleAccess = Boolean.parseBoolean(envVaultPathStyle);
 
-        String envVaultKeyPath = envProvider.apply("FIGCHAIN_VAULT_PRIVATE_KEY_PATH");
-        if (envVaultKeyPath != null) this.vaultPrivateKeyPath = envVaultKeyPath;
 
-        String envEncKeyPath = envProvider.apply("FIGCHAIN_ENCRYPTION_PRIVATE_KEY_PATH");
-        if (envEncKeyPath != null) this.encryptionPrivateKeyPath = envEncKeyPath;
+        String envEncKey = envProvider.apply("FIGCHAIN_ENCRYPTION_PRIVATE_KEY");
+        if (envEncKey != null) this.encryptionPrivateKey = envEncKey;
 
-        String envAuthKeyPath = envProvider.apply("FIGCHAIN_AUTH_PRIVATE_KEY_PATH");
-        if (envAuthKeyPath != null) this.authPrivateKeyPath = envAuthKeyPath;
+        String envAuthKey = envProvider.apply("FIGCHAIN_IDENTITY_PRIVATE_KEY"); // Using IDENTITY to match other clients
+        if (envAuthKey != null) this.authPrivateKey = envAuthKey;
         String envAuthClientId = envProvider.apply("FIGCHAIN_AUTH_CLIENT_ID");
         if (envAuthClientId != null) this.authClientId = envAuthClientId;
         String envTenantId = envProvider.apply("FIGCHAIN_TENANT_ID");
@@ -484,8 +510,8 @@ public class FigChainClientBuilder {
         } if (environmentId == null) {
             throw new IllegalStateException("environmentId must be set");
         }
-        if (clientSecret == null && authPrivateKeyPath == null && authPrivateKeyPem == null) {
-            throw new IllegalStateException("An authentication method must be configured. Please provide either a clientSecret, authPrivateKeyPath or load from config.");
+        if (clientSecret == null && authPrivateKey == null) {
+            throw new IllegalStateException("An authentication method must be configured. Please provide either a clientSecret or authPrivateKey.");
         }
 
         if (figStore == null) {
@@ -498,29 +524,22 @@ public class FigChainClientBuilder {
             httpClient = java.net.http.HttpClient.newHttpClient();
         }
 
+        if (this.baseUrl != null && !this.baseUrl.endsWith("/")) {
+            this.baseUrl = this.baseUrl + "/";
+        }
+
         URI baseUri = URI.create(this.baseUrl);
 
         TokenProvider tokenProvider = null;
-        if (authPrivateKeyPath != null || authPrivateKeyPem != null) {
+        if (authPrivateKey != null) {
             if (namespaces.size() > 1) {
                 throw new IllegalStateException("Private key authentication can only be used with a single namespace");
             }
-            try {
-                String serviceAccountId = (authClientId != null) ? authClientId
-                        : (authCredentialId != null) ? authCredentialId : environmentId.toString();
-                String namespace = namespaces.isEmpty() ? null : namespaces.iterator().next();
-
-                java.security.interfaces.RSAPrivateKey pk;
-                if (authPrivateKeyPem != null) {
-                    pk = io.figchain.client.util.KeyUtils.parsePrivateKey(authPrivateKeyPem);
-                } else {
-                    pk = io.figchain.client.util.KeyUtils.loadPrivateKey(java.nio.file.Path.of(authPrivateKeyPath));
-                }
-
-                tokenProvider = new PrivateKeyTokenProvider(pk, serviceAccountId, tenantId, namespace, authCredentialId);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to load auth private key", e);
-            }
+            String serviceAccountId = (authClientId != null) ? authClientId
+                    : (authCredentialId != null) ? authCredentialId : environmentId.toString();
+            String namespace = namespaces.isEmpty() ? null : namespaces.iterator().next();
+            String authKeyHex = authPrivateKey.trim();
+            tokenProvider = new PrivateKeyTokenProvider(authKeyHex, serviceAccountId, tenantId, namespace, authCredentialId);
         } else {
             tokenProvider = new SharedSecretTokenProvider(clientSecret);
         }
@@ -534,36 +553,33 @@ public class FigChainClientBuilder {
         }
 
         // Configure Bootstrap Strategy
-        io.figchain.client.bootstrap.BootstrapStrategy bootstrapStrategy = null;
+        BootstrapStrategy bootstrapStrategy;
 
         // 1. Server Strategy (Core)
-        io.figchain.client.bootstrap.ServerBootstrapStrategy serverStrategy =
-            new io.figchain.client.bootstrap.ServerBootstrapStrategy(fcClientTransport, environmentId, asOfTimestamp, maxRetries, retryDelayMillis);
+        ServerBootstrapStrategy serverStrategy =
+            new ServerBootstrapStrategy(fcClientTransport, environmentId, asOfTimestamp, maxRetries, retryDelayMillis);
 
-        if (vaultEnabled) {
-            // Create Config object for VaultService (reuse fields from builder not ClientConfiguration object to avoid mismatch)
-            ClientConfiguration vaultConfig = new ClientConfiguration();
-            vaultConfig.setVaultEnabled(true); // Since we entered this block
-            vaultConfig.setVaultBucket(vaultBucket);
-            vaultConfig.setVaultPrefix(vaultPrefix);
-            vaultConfig.setVaultRegion(vaultRegion);
-            vaultConfig.setVaultEndpoint(vaultEndpoint);
-            vaultConfig.setVaultPathStyleAccess(vaultPathStyleAccess);
-            vaultConfig.setVaultPrivateKeyPath(vaultPrivateKeyPath);
+        if (s3BackupEnabled) {
+            ClientConfiguration s3Config = new ClientConfiguration();
+            s3Config.setS3BackupEnabled(true);
+            s3Config.setS3BackupBucket(s3BackupBucket);
+            s3Config.setS3BackupPrefix(s3BackupPrefix);
+            s3Config.setS3BackupRegion(s3BackupRegion);
+            s3Config.setS3BackupEndpoint(s3BackupEndpoint);
+            s3Config.setS3BackupPathStyleAccess(s3BackupPathStyleAccess);
 
-            io.figchain.client.vault.VaultService vaultService = new io.figchain.client.vault.VaultService(vaultConfig, new ObjectMapper());
-            io.figchain.client.bootstrap.VaultBootstrapStrategy vaultStrategy = new io.figchain.client.bootstrap.VaultBootstrapStrategy(vaultService);
+            String s3Key = (authPrivateKey != null) ? authPrivateKey : encryptionPrivateKey;
+            S3BackupService s3Service = new S3BackupService(s3Config, new ObjectMapper(), s3Key);
+            S3BackupBootstrapStrategy s3Strategy = new S3BackupBootstrapStrategy(s3Service);
 
-            if (bootstrapMode == ClientConfiguration.BootstrapMode.VAULT_ONLY) {
-                bootstrapStrategy = vaultStrategy;
-            } else if (bootstrapMode == ClientConfiguration.BootstrapMode.VAULT_FIRST) {
-                bootstrapStrategy = new io.figchain.client.bootstrap.HybridVaultFirstStrategy(vaultStrategy, serverStrategy, fcClientTransport);
+            if (bootstrapMode == ClientConfiguration.BootstrapMode.S3_BACKUP_ONLY) {
+                bootstrapStrategy = s3Strategy;
+            } else if (bootstrapMode == ClientConfiguration.BootstrapMode.S3_BACKUP_FIRST) {
+                bootstrapStrategy = new HybridS3BackupFirstStrategy(s3Strategy, serverStrategy, fcClientTransport);
             } else {
-                // Default to SERVER_FIRST with fallback
-                bootstrapStrategy = new io.figchain.client.bootstrap.FallbackServerFirstStrategy(serverStrategy, vaultStrategy);
+                bootstrapStrategy = new FallbackServerFirstStrategy(serverStrategy, s3Strategy);
             }
         } else {
-            // Default to Server Only (standard behavior)
             bootstrapStrategy = serverStrategy;
         }
 
@@ -571,8 +587,22 @@ public class FigChainClientBuilder {
         ExecutorService fetchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
         EncryptionService encryptionService = null;
-        if (encryptionPrivateKeyPath != null) {
-            encryptionService = new EncryptionService(fcClientTransport, java.nio.file.Path.of(encryptionPrivateKeyPath));
+        // Encryption requires a dedicated private key - no fallback to auth key
+        if (encryptionPrivateKey != null) {
+            encryptionService = new EncryptionService(fcClientTransport, encryptionPrivateKey.trim());
+        }
+
+        if (encryptionService != null && s3BackupEnabled && s3BackupBucket != null) {
+            String effectiveClientId = (authCredentialId != null) ? authCredentialId : authClientId;
+            if (effectiveClientId != null) {
+                String vAccessKey = System.getenv("FIGCHAIN_S3_BACKUP_ACCESS_KEY");
+                String vSecretKey = System.getenv("FIGCHAIN_S3_BACKUP_SECRET_KEY");
+
+                S3EnvelopeProvider s3Provider = new S3EnvelopeProvider(
+                        s3BackupBucket, s3BackupPrefix, s3BackupRegion, vAccessKey, vSecretKey, s3BackupEndpoint, s3BackupPathStyleAccess, effectiveClientId
+                );
+                encryptionService.setS3Provider(s3Provider);
+            }
         }
 
         final FigChainClient fcClient = new FigChainClient(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId, bootstrapStrategy, defaultContext, encryptionService);

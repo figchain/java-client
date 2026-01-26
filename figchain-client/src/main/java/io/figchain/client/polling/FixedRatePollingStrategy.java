@@ -65,8 +65,12 @@ public class FixedRatePollingStrategy implements PollingStrategy {
             }
             try {
                 UpdateFetchResponse response = fcClientTransport.fetchUpdates(namespace, cursor);
-                if (response.getFigFamilies() != null && !response.getFigFamilies().isEmpty()) {
-                    updateListener.onUpdate(response.getFigFamilies());
+                if ((response.getFigFamilies() != null && !response.getFigFamilies().isEmpty()) || (response.getSchemas() != null && !response.getSchemas().isEmpty())) {
+                    java.util.Map<String, String> schemaMap = new java.util.HashMap<>();
+                    if (response.getSchemas() != null) {
+                        response.getSchemas().forEach((k, v) -> schemaMap.put(k.toString(), v.toString()));
+                    }
+                    updateListener.onUpdate(response.getFigFamilies(), schemaMap);
                 }
                 namespaceCursors.put(namespace, response.getCursor().toString());
                 log.debug("Successfully fetched updates for namespace {}. New cursor: {}", namespace, response.getCursor());

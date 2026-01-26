@@ -41,6 +41,7 @@ public class ServerBootstrapStrategy implements BootstrapStrategy {
         log.debug("Bootstrapping from server for namespaces: {}", namespaces);
         List<FigFamily> allFamilies = new ArrayList<>();
         Map<String, String> cursors = new HashMap<>();
+        Map<String, String> schemas = new HashMap<>();
 
         for (String namespace : namespaces) {
             InitialFetchResponse response = executeWithRetry(() -> {
@@ -56,10 +57,15 @@ public class ServerBootstrapStrategy implements BootstrapStrategy {
                 if (response.getCursor() != null) {
                     cursors.put(namespace, response.getCursor().toString());
                 }
+                if (response.getSchemas() != null) {
+                    for (Map.Entry<CharSequence, CharSequence> entry : response.getSchemas().entrySet()) {
+                         schemas.put(entry.getKey().toString(), entry.getValue().toString());
+                    }
+                }
             }
         }
 
-        return new BootstrapResult(allFamilies, cursors);
+        return new BootstrapResult(allFamilies, cursors, schemas);
     }
 
     private <T> T executeWithRetry(Callable<T> task, String taskName) throws Exception {

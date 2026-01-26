@@ -39,6 +39,15 @@ public interface FcClientTransport {
     void uploadPublicKey(UserPublicKey key);
 
     /**
+     * Fetches a schema by namespace, name, and version.
+     * @param namespace the namespace
+     * @param name the schema name
+     * @param version the schema version
+     * @return the schema content
+     */
+    String fetchSchema(String namespace, String name, int version);
+
+    /**
      * Shuts down the client cleanly.
      */
     void shutdown();

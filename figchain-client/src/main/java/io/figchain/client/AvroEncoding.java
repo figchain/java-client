@@ -40,7 +40,17 @@ public class AvroEncoding {
     }
 
     public static <T extends SpecificRecord> T deserializeBinary(byte[] data, Class<T> clazz) throws IOException {
-        org.apache.avro.io.DatumReader<T> reader = new org.apache.avro.specific.SpecificDatumReader<>(clazz);
+        return deserializeBinary(data, clazz, null);
+    }
+
+    public static <T extends SpecificRecord> T deserializeBinary(byte[] data, Class<T> clazz, org.apache.avro.Schema writerSchema) throws IOException {
+        org.apache.avro.io.DatumReader<T> reader;
+        if (writerSchema != null) {
+            org.apache.avro.Schema readerSchema = org.apache.avro.specific.SpecificData.get().getSchema(clazz);
+            reader = new org.apache.avro.specific.SpecificDatumReader<>(writerSchema, readerSchema);
+        } else {
+            reader = new org.apache.avro.specific.SpecificDatumReader<>(clazz);
+        }
         org.apache.avro.io.Decoder decoder = org.apache.avro.io.DecoderFactory.get().binaryDecoder(data, null);
         return reader.read(null, decoder);
     }

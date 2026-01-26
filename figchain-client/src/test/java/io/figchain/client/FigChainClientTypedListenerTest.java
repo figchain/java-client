@@ -90,7 +90,7 @@ class FigChainClientTypedListenerTest {
         AtomicReference<TestRecord> receivedRecord = new AtomicReference<>();
         fcClient.registerListener(key, TestRecord.class, receivedRecord::set);
 
-        fcClient.onUpdate(Collections.singletonList(figFamily));
+        fcClient.onUpdate(Collections.singletonList(figFamily), Collections.emptyMap());
 
         assertNotNull(receivedRecord.get());
         assertEquals(value, receivedRecord.get().get(0).toString());

@@ -21,22 +21,37 @@ public class ClientConfiguration {
     private String tenantId;
 
     // Vault (S3 Backup) Configuration
-    private boolean vaultEnabled = false;
+    private boolean s3BackupEnabled = false;
     private String vaultBucket;
     private String vaultPrefix = "";
     private String vaultRegion = "us-east-1";
     private String vaultEndpoint;
     private boolean vaultPathStyleAccess = false;
-    private String vaultPrivateKeyPath;
-    private String encryptionPrivateKeyPath;
-    private String authPrivateKeyPath;
+    private String authPrivateKey;
+    private String encryptionPrivateKey;
     private BootstrapMode bootstrapMode = BootstrapMode.SERVER_FIRST;
 
     public enum BootstrapMode {
         SERVER_FIRST,
-        VAULT_FIRST,
+        S3_BACKUP_FIRST,
         SERVER_ONLY,
-        VAULT_ONLY
+        S3_BACKUP_ONLY
+    }
+
+    public String getAuthPrivateKey() {
+        return authPrivateKey;
+    }
+
+    public void setAuthPrivateKey(String authPrivateKey) {
+        this.authPrivateKey = authPrivateKey;
+    }
+
+    public String getEncryptionPrivateKey() {
+        return encryptionPrivateKey;
+    }
+
+    public void setEncryptionPrivateKey(String encryptionPrivateKey) {
+        this.encryptionPrivateKey = encryptionPrivateKey;
     }
 
     public String getBaseUrl() {
@@ -111,60 +126,52 @@ public class ClientConfiguration {
         this.environmentId = environmentId;
     }
 
-    public boolean isVaultEnabled() {
-        return vaultEnabled;
+    public boolean isS3BackupEnabled() {
+        return s3BackupEnabled;
     }
 
-    public void setVaultEnabled(boolean vaultEnabled) {
-        this.vaultEnabled = vaultEnabled;
+    public void setS3BackupEnabled(boolean s3BackupEnabled) {
+        this.s3BackupEnabled = s3BackupEnabled;
     }
 
-    public String getVaultBucket() {
+    public String getS3BackupBucket() {
         return vaultBucket;
     }
 
-    public void setVaultBucket(String vaultBucket) {
+    public void setS3BackupBucket(String vaultBucket) {
         this.vaultBucket = vaultBucket;
     }
 
-    public String getVaultPrefix() {
+    public String getS3BackupPrefix() {
         return vaultPrefix;
     }
 
-    public void setVaultPrefix(String vaultPrefix) {
+    public void setS3BackupPrefix(String vaultPrefix) {
         this.vaultPrefix = vaultPrefix;
     }
 
-    public String getVaultRegion() {
+    public String getS3BackupRegion() {
         return vaultRegion;
     }
 
-    public void setVaultRegion(String vaultRegion) {
+    public void setS3BackupRegion(String vaultRegion) {
         this.vaultRegion = vaultRegion;
     }
 
-    public String getVaultEndpoint() {
+    public String getS3BackupEndpoint() {
         return vaultEndpoint;
     }
 
-    public void setVaultEndpoint(String vaultEndpoint) {
+    public void setS3BackupEndpoint(String vaultEndpoint) {
         this.vaultEndpoint = vaultEndpoint;
     }
 
-    public boolean isVaultPathStyleAccess() {
+    public boolean isS3BackupPathStyleAccess() {
         return vaultPathStyleAccess;
     }
 
-    public void setVaultPathStyleAccess(boolean vaultPathStyleAccess) {
+    public void setS3BackupPathStyleAccess(boolean vaultPathStyleAccess) {
         this.vaultPathStyleAccess = vaultPathStyleAccess;
-    }
-
-    public String getVaultPrivateKeyPath() {
-        return vaultPrivateKeyPath;
-    }
-
-    public void setVaultPrivateKeyPath(String vaultPrivateKeyPath) {
-        this.vaultPrivateKeyPath = vaultPrivateKeyPath;
     }
 
     public BootstrapMode getBootstrapMode() {
@@ -175,21 +182,6 @@ public class ClientConfiguration {
         this.bootstrapMode = bootstrapMode;
     }
 
-    public String getEncryptionPrivateKeyPath() {
-        return encryptionPrivateKeyPath;
-    }
-
-    public void setEncryptionPrivateKeyPath(String encryptionPrivateKeyPath) {
-        this.encryptionPrivateKeyPath = encryptionPrivateKeyPath;
-    }
-
-    public String getAuthPrivateKeyPath() {
-        return authPrivateKeyPath;
-    }
-
-    public void setAuthPrivateKeyPath(String authPrivateKeyPath) {
-        this.authPrivateKeyPath = authPrivateKeyPath;
-    }
     public String getAuthClientId() {
         return authClientId;
     }

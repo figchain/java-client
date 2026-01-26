@@ -43,7 +43,7 @@ public class E2EMain {
         }
 
         if (authKeyPath != null && !authKeyPath.isEmpty()) {
-            builder.withAuthPrivateKeyPath(authKeyPath)
+            builder.withAuthPrivateKey(java.nio.file.Files.readString(java.nio.file.Path.of(authKeyPath)).trim())
                    .withAuthClientId(authClientId);
         } else if (clientSecret != null && !clientSecret.isEmpty()) {
             builder.withClientSecret(clientSecret);
@@ -52,7 +52,7 @@ public class E2EMain {
         }
 
         if (encKeyPath != null && !encKeyPath.isEmpty()) {
-            builder.withEncryptionPrivateKeyPath(encKeyPath);
+            builder.withEncryptionPrivateKey(java.nio.file.Files.readString(java.nio.file.Path.of(encKeyPath)).trim());
         }
 
         try (FigChainClient client = builder.build()) {

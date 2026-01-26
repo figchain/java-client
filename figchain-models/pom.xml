@@ -4,14 +4,14 @@
     <parent>
         <groupId>io.figchain</groupId>
         <artifactId>java-client-parent</artifactId>
-        <version>1.2.1-SNAPSHOT</version>
+        <version>1.2.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>figchain-models</artifactId>
     <packaging>jar</packaging>
 
     <name>FigChain Models</name>
-    <description>Avro models for FigChain Java client</description>
+    <description>Avro models for the FigChain Java client</description>
 
     <dependencies>
         <dependency>
@@ -45,7 +45,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.4.0</version>
+                <version>3.6.1</version>
                 <executions>
                     <execution>
                         <id>add-avro-source</id>

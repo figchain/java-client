@@ -1,9 +1,9 @@
-package io.figchain.client.vault;
+package io.figchain.client.backup;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class VaultBackup {
+public class BackupFile {
 
     private String version;
     private String keyFingerprint;
