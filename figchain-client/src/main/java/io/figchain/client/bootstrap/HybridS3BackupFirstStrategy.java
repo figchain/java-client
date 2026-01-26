@@ -13,15 +13,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class HybridVaultFirstStrategy implements BootstrapStrategy {
+public class HybridS3BackupFirstStrategy implements BootstrapStrategy {
 
-    private static final Logger log = LoggerFactory.getLogger(HybridVaultFirstStrategy.class);
+    private static final Logger log = LoggerFactory.getLogger(HybridS3BackupFirstStrategy.class);
 
     private final BootstrapStrategy vaultStrategy;
     private final BootstrapStrategy serverStrategy;
     private final FcClientTransport transport;
 
-    public HybridVaultFirstStrategy(BootstrapStrategy vaultStrategy, BootstrapStrategy serverStrategy, FcClientTransport transport) {
+    public HybridS3BackupFirstStrategy(BootstrapStrategy vaultStrategy, BootstrapStrategy serverStrategy, FcClientTransport transport) {
         this.vaultStrategy = vaultStrategy;
         this.serverStrategy = serverStrategy;
         this.transport = transport;

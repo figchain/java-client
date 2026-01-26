@@ -1,4 +1,4 @@
-package io.figchain.client.vault;
+package io.figchain.client.backup;
 
 import io.figchain.client.config.ClientConfiguration;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -11,29 +11,31 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkClientException;
 
-public class S3VaultFetcher implements AutoCloseable {
+public class S3BackupFetcher implements AutoCloseable {
 
     private final S3Client s3Client;
     private final String bucketName;
     private final String objectPrefix;
 
-    public S3VaultFetcher(ClientConfiguration config) {
-        this.bucketName = config.getVaultBucket();
-        this.objectPrefix = config.getVaultPrefix();
+    public S3BackupFetcher(ClientConfiguration config) {
+        this.bucketName = config.getS3BackupBucket();
+        this.objectPrefix = config.getS3BackupPrefix();
 
         S3ClientBuilder builder = S3Client.builder()
                 .credentialsProvider(DefaultCredentialsProvider.builder().build());
 
-        if (config.getVaultRegion() != null) {
-            builder.region(Region.of(config.getVaultRegion()));
+        if (config.getS3BackupRegion() != null) {
+            builder.region(Region.of(config.getS3BackupRegion()));
         }
 
-        if (config.getVaultEndpoint() != null) {
-            builder.endpointOverride(URI.create(config.getVaultEndpoint()));
+        if (config.getS3BackupEndpoint() != null) {
+            builder.endpointOverride(URI.create(config.getS3BackupEndpoint()));
         }
 
-        if (config.isVaultPathStyleAccess()) {
+        if (config.isS3BackupPathStyleAccess()) {
             builder.forcePathStyle(true);
         }
 
@@ -68,7 +70,7 @@ public class S3VaultFetcher implements AutoCloseable {
             return s3Client.getObject(request);
         } catch (NoSuchKeyException e) {
             throw new IOException("Backup file not found at key: " + key, e);
-        } catch (Exception e) {
+        } catch (AwsServiceException | SdkClientException e) {
             throw new IOException("Failed to fetch backup from S3", e);
         }
     }

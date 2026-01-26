@@ -6,10 +6,10 @@
 
     <groupId>io.figchain</groupId>
     <artifactId>java-client-parent</artifactId>
-    <version>1.2.1-SNAPSHOT</version>
+    <version>1.2.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>FigChain Java Client</name>
+    <name>FigChain Java Client Parent</name>
     <description>Official Java client library for FigChain configuration management</description>
     <url>https://github.com/figchain/java-client</url>
     <inceptionYear>2025</inceptionYear>
@@ -52,12 +52,13 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <avro.version>1.12.0</avro.version>
-        <slf4j.version>2.0.13</slf4j.version>
-        <logback.version>1.5.6</logback.version>
-        <jackson.version>2.19.1</jackson.version>
-        <junit.jupiter.version>5.12.2</junit.jupiter.version>
-        <mockito.version>5.18.0</mockito.version>
+        <avro.version>1.12.1</avro.version>
+        <slf4j.version>2.0.17</slf4j.version>
+        <logback.version>1.5.24</logback.version>
+        <jackson.version>2.19.4</jackson.version>
+        <junit.jupiter.version>6.0.1</junit.jupiter.version>
+        <mockito.version>5.20.0</mockito.version>
+        <aws.bom.version>2.41.10</aws.bom.version>
     </properties>
 
     <dependencyManagement>
@@ -125,7 +126,7 @@
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
-                <version>2.34.0</version>
+                <version>${aws.bom.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -143,11 +144,11 @@
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
+                <version>3.5.4</version>
             </plugin>
             <plugin>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>3.3.1</version>
+                <version>3.4.0</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -159,7 +160,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.11.2</version>
+                <version>3.12.0</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>

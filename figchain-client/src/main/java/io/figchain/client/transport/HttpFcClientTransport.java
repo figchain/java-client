@@ -213,7 +213,7 @@ public class HttpFcClientTransport implements FcClientTransport {
                     NamespaceKey key = new NamespaceKey();
                     key.setWrappedKey(e.getEncryptedBlob());
                     Integer nskVersion = e.getKey().getNskVersion();
-                    key.setKeyId(nskVersion == null ? null : nskVersion.toString());
+                    key.setKeyId(nskVersion == null ? null : "nsk-v" + nskVersion);
                     return key;
                 })
                 .collect(Collectors.toList());
@@ -246,6 +246,38 @@ public class HttpFcClientTransport implements FcClientTransport {
         } catch (IOException e) {
             log.error("Failed to upload public key", e);
             throw new FcNetworkException("Failed to upload public key", e);
+        } catch (InterruptedException ex) {
+            log.info("Client interrupted");
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Client interrupted", ex);
+        }
+    }
+
+    @Override
+    public String fetchSchema(String namespace, String name, int version) {
+        try {
+            String encodedNs = java.net.URLEncoder.encode(namespace, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+            String encodedName = java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+            URI uri = this.baseUrl.resolve("schemas/" + encodedNs + "/" + encodedName + "/" + version + "/content");
+
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .header("Authorization", authHeaderValue())
+                    .GET()
+                    .timeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                log.error("Failed to fetch schema {}/{}/{}: status={}", namespace, name, version, response.statusCode());
+                throw new FcTransportException("Failed to fetch schema: " + response.statusCode(), response.statusCode(), response.body());
+            }
+
+            return response.body();
+        } catch (IOException e) {
+            log.error("Failed to fetch schema", e);
+            throw new FcNetworkException("Failed to fetch schema", e);
         } catch (InterruptedException ex) {
             log.info("Client interrupted");
             Thread.currentThread().interrupt();

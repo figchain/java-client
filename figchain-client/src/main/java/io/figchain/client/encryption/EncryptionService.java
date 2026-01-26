@@ -16,16 +16,20 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EncryptionService {
 
     private final FcClientTransport transport;
-    private final PrivateKey privateKey;
+    private final byte[] privateKey;
     private final Map<String, byte[]> nskCache = new ConcurrentHashMap<>();
 
-    public EncryptionService(FcClientTransport transport, Path privateKeyPath) {
+    private io.figchain.client.backup.S3EnvelopeProvider s3Provider;
+
+    public EncryptionService(FcClientTransport transport, String privateKeyHex) {
         this.transport = transport;
-        try {
-            this.privateKey = EncryptionCrypto.loadPrivateKey(privateKeyPath);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to load private key from " + privateKeyPath, e);
-        }
+        this.privateKey = java.util.HexFormat.of().parseHex(privateKeyHex);
+    }
+
+    // For direct byte array
+    public EncryptionService(FcClientTransport transport, byte[] privateKeyBytes) {
+        this.transport = transport;
+        this.privateKey = privateKeyBytes;
     }
 
     public byte[] decrypt(Fig fig, String namespace) {
@@ -38,12 +42,21 @@ public class EncryptionService {
 
         byte[] nsk = getNsk(namespace, nskId);
 
-        // DEK unwrap
-        byte[] dek = EncryptionCrypto.unwrapAesKey(wrappedDek, nsk);
+        // DEK unwrap (Always AES-GCM now)
+        byte[] dek;
+        try {
+            dek = EncryptionCrypto.decryptAesGcm(wrappedDek, nsk);
+        } catch (RuntimeException gcmEx) {
+            throw new RuntimeException("Failed to unwrap DEK (AES-GCM)", gcmEx);
+        }
 
         // Payload decrypt
         byte[] payload = BufferUtils.toByteArray(fig.getPayload());
         return EncryptionCrypto.decryptAesGcm(payload, dek);
+    }
+
+    public void setS3Provider(io.figchain.client.backup.S3EnvelopeProvider s3Provider) {
+        this.s3Provider = s3Provider;
     }
 
     private byte[] getNsk(String namespace, String keyId) {
@@ -51,16 +64,46 @@ public class EncryptionService {
             return nskCache.get(keyId);
         }
 
-        java.util.List<NamespaceKey> nsKeys = transport.getNamespaceKey(namespace);
+        NamespaceKey matchingKey = null;
 
-        NamespaceKey matchingKey = nsKeys.stream()
-                .filter(k -> Objects.equals(keyId, k.getKeyId()))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No matching key found for namespace " + namespace + " and keyId " + keyId));
+        // Try API
+        try {
+            java.util.List<NamespaceKey> nsKeys = transport.getNamespaceKey(namespace);
+            matchingKey = nsKeys.stream()
+                    .filter(k -> Objects.equals(keyId, k.getKeyId()))
+                    .findFirst()
+                    .orElse(null);
+
+            // If explicit keyId not found, but we have keys and keyId was null, pick first?
+            if (matchingKey == null && keyId == null && !nsKeys.isEmpty()) {
+                matchingKey = nsKeys.get(0);
+            }
+        } catch (Exception e) {
+            // API failed, proceed to S3 fallback if available
+            if (s3Provider == null) {
+                if (e instanceof RuntimeException) throw (RuntimeException)e;
+                throw new RuntimeException("Failed to fetch NSK from API", e);
+            }
+        }
+
+        // Fallback to S3 Backups
+        if (matchingKey == null && s3Provider != null) {
+            java.util.Optional<NamespaceKey> s3Key = s3Provider.getEnvelope(namespace);
+            if (s3Key.isPresent()) {
+                NamespaceKey k = s3Key.get();
+                if (keyId == null || Objects.equals(keyId, k.getKeyId())) {
+                    matchingKey = k;
+                }
+            }
+        }
+
+        if (matchingKey == null) {
+            throw new RuntimeException("No matching key found for namespace " + namespace + " and keyId " + keyId + " (tried API and S3)");
+        }
 
         try {
             byte[] wrappedKeyBytes = java.util.Base64.getDecoder().decode(matchingKey.getWrappedKey());
-            byte[] unwrappedNsk = EncryptionCrypto.decryptRsaOaep(wrappedKeyBytes, privateKey);
+            byte[] unwrappedNsk = EncryptionCrypto.decryptX25519(wrappedKeyBytes, privateKey);
 
             if (matchingKey.getKeyId() != null) {
                 nskCache.put(matchingKey.getKeyId(), unwrappedNsk);

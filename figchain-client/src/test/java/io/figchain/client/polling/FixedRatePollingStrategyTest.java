@@ -70,7 +70,7 @@ class FixedRatePollingStrategyTest {
         invokeFetchUpdates();
 
         // Verify listener was NOT called
-        verify(mockUpdateListener, never()).onUpdate(any());
+        verify(mockUpdateListener, never()).onUpdate(any(), any());
 
         // Verify cursor WAS updated
         // We can't easily verify the map update directly without a getter or checking the map,
@@ -92,7 +92,7 @@ class FixedRatePollingStrategyTest {
         invokeFetchUpdates();
 
         // Verify listener WAS called
-        verify(mockUpdateListener).onUpdate(any());
+        verify(mockUpdateListener).onUpdate(any(), any());
     }
 
     @Test
@@ -107,7 +107,7 @@ class FixedRatePollingStrategyTest {
 
          invokeFetchUpdates();
 
-         verify(mockUpdateListener, never()).onUpdate(any());
+         verify(mockUpdateListener, never()).onUpdate(any(), any());
     }
 
     private void invokeFetchUpdates() throws Exception {

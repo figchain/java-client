@@ -76,8 +76,12 @@ public class LongPollingStrategy implements PollingStrategy {
                     if (response != null) {
                         boolean hasUpdates = response.getFigFamilies() != null && !response.getFigFamilies().isEmpty();
 
-                        if (hasUpdates) {
-                            updateListener.onUpdate(response.getFigFamilies());
+                        if (hasUpdates || (response.getSchemas() != null && !response.getSchemas().isEmpty())) {
+                            java.util.Map<String, String> schemaMap = new java.util.HashMap<>();
+                            if (response.getSchemas() != null) {
+                                response.getSchemas().forEach((k, v) -> schemaMap.put(k.toString(), v.toString()));
+                            }
+                            updateListener.onUpdate(response.getFigFamilies(), schemaMap);
                         }
                         namespaceCursors.put(namespace, response.getCursor().toString());
                         log.debug("Successfully fetched updates for namespace {}. New cursor: {}", namespace, response.getCursor());
@@ -86,12 +90,21 @@ public class LongPollingStrategy implements PollingStrategy {
                         applyThrottleIfNeeded(namespace, hasUpdates);
                     }
                 } catch (Exception e) {
+                    if (!running.get()) {
+                        log.debug("Long polling stopped during shutdown for namespace {}", namespace);
+                        break;
+                    }
+                    if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
+                        log.debug("Long polling interrupted for namespace {}", namespace);
+                        break;
+                    }
                     log.error("Failed to long poll for updates for namespace {}", namespace, e);
                     // Backoff before retrying
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException interruptedException) {
                         Thread.currentThread().interrupt();
+                        break;
                     }
                 }
             }
@@ -125,7 +138,7 @@ public class LongPollingStrategy implements PollingStrategy {
 
         if (shouldThrottle) {
             log.debug("Throttling namespace {} due to {} updates in last {}ms",
-                     namespace, timestamps.size(), UPDATE_FREQUENCY_WINDOW_MS);
+                      namespace, timestamps.size(), UPDATE_FREQUENCY_WINDOW_MS);
         }
 
         return shouldThrottle;

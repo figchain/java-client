@@ -6,5 +6,6 @@ import java.util.List;
 
 @FunctionalInterface
 public interface FcUpdateListener {
-    void onUpdate(List<FigFamily> figFamilies);
+
+    void onUpdate(List<FigFamily> figFamilies, java.util.Map<String, String> schemas);
 }

@@ -15,23 +15,46 @@ import java.util.Map;
 public class EvaluationContext {
     private final Map<String, String> attributes;
 
+    /**
+     * Creates a new evaluation context without any attributes.
+     */
     public EvaluationContext() {
         this.attributes = new HashMap<>();
     }
 
+    /**
+     * Creates a new evaluation context with the given attributes. The given map values
+     * are copied into the state of the new instance.
+     * @param attributes the attributes used in the new instance
+     */
     public EvaluationContext(Map<String, String> attributes) {
         this.attributes = new HashMap<>(attributes);
     }
 
+    /**
+     * Adds or updates the given key in the attributes map.
+     * @param key the key of the attribute
+     * @param value the value of the attribute
+     * @return the current instance, for fluent chaining
+     */
     public EvaluationContext put(String key, String value) {
         this.attributes.put(key, value);
         return this;
     }
 
+    /**
+     * Gets the value of the attribute with the given key.
+     * @param key the key of the attribute to key
+     * @return the value, or {@code null} if the attribute did not exist
+     */
     public String get(String key) {
         return this.attributes.get(key);
     }
 
+    /**
+     * Gets an unmodifiable view of the attributes in the current instance.
+     * @return the attributes
+     */
     public Map<String, String> getAttributes() {
         return Collections.unmodifiableMap(attributes);
     }

@@ -4,8 +4,8 @@ package io.figchain.client.bootstrap;
 import io.figchain.avro.model.InitialFetchResponse;
 import io.figchain.avro.model.UpdateFetchResponse;
 import io.figchain.client.transport.FcClientTransport;
-import io.figchain.client.vault.VaultPayload;
-import io.figchain.client.vault.VaultService;
+import io.figchain.client.backup.BackupPayload;
+import io.figchain.client.backup.S3BackupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -30,7 +30,7 @@ public class BootstrapStrategyTest {
     private FcClientTransport transport;
 
     @Mock
-    private VaultService vaultService;
+    private S3BackupService vaultService;
 
     private final UUID environmentId = UUID.randomUUID();
     private final Set<String> namespaces = Collections.singleton("test-ns");
@@ -60,13 +60,13 @@ public class BootstrapStrategyTest {
 
     @Test
     public void testVaultBootstrapSuccess() throws Exception {
-        VaultPayload payload = new VaultPayload();
+        BackupPayload payload = new BackupPayload();
         payload.setSyncToken("vault-sync-token");
         payload.setItems(Collections.emptyList());
 
         when(vaultService.loadBackup()).thenReturn(payload);
 
-        VaultBootstrapStrategy strategy = new VaultBootstrapStrategy(vaultService);
+        S3BackupBootstrapStrategy strategy = new S3BackupBootstrapStrategy(vaultService);
         BootstrapResult result = strategy.bootstrap(namespaces);
 
         assertNotNull(result);
@@ -77,11 +77,11 @@ public class BootstrapStrategyTest {
     @Test
     public void testHybridStrategySuccess() throws Exception {
         // Vault setup
-        VaultPayload payload = new VaultPayload();
+        BackupPayload payload = new BackupPayload();
         payload.setSyncToken("vault-cursor");
         payload.setItems(Collections.emptyList());
         when(vaultService.loadBackup()).thenReturn(payload);
-        VaultBootstrapStrategy vaultStrategy = new VaultBootstrapStrategy(vaultService);
+        S3BackupBootstrapStrategy vaultStrategy = new S3BackupBootstrapStrategy(vaultService);
 
         // Server update setup
         UpdateFetchResponse updateResponse = UpdateFetchResponse.newBuilder()
@@ -92,7 +92,7 @@ public class BootstrapStrategyTest {
 
         ServerBootstrapStrategy serverStrategy = mock(ServerBootstrapStrategy.class);
 
-        HybridVaultFirstStrategy strategy = new HybridVaultFirstStrategy(vaultStrategy, serverStrategy, transport);
+        HybridS3BackupFirstStrategy strategy = new HybridS3BackupFirstStrategy(vaultStrategy, serverStrategy, transport);
         BootstrapResult result = strategy.bootstrap(namespaces);
 
         assertNotNull(result);
@@ -107,7 +107,7 @@ public class BootstrapStrategyTest {
         Set<String> twoNamespaces = Set.of("ns-present", "ns-missing");
 
         // Vault setup - only has ns-present
-        VaultPayload payload = new VaultPayload();
+        BackupPayload payload = new BackupPayload();
         payload.setSyncToken("vault-cursor");
         // Vault Strategy Mock: Only returns data for 'ns-present', simulating 'ns-missing' was not in Vault.
 
@@ -131,7 +131,7 @@ public class BootstrapStrategyTest {
                 .build();
         when(transport.fetchUpdates(eq("ns-present"), eq("vault-cursor"))).thenReturn(updateResponse);
 
-        HybridVaultFirstStrategy strategy = new HybridVaultFirstStrategy(mockVaultStrategy, mockServerStrategy, transport);
+        HybridS3BackupFirstStrategy strategy = new HybridS3BackupFirstStrategy(mockVaultStrategy, mockServerStrategy, transport);
         BootstrapResult result = strategy.bootstrap(twoNamespaces);
 
         assertNotNull(result);
@@ -149,13 +149,13 @@ public class BootstrapStrategyTest {
         when(transport.fetchInitial(anyString(), any(), any())).thenThrow(new RuntimeException("Server down"));
 
         // Vault setup
-        VaultPayload payload = new VaultPayload();
+        BackupPayload payload = new BackupPayload();
         payload.setSyncToken("vault-cursor");
         payload.setItems(Collections.emptyList());
         when(vaultService.loadBackup()).thenReturn(payload);
 
         ServerBootstrapStrategy serverStrategy = new ServerBootstrapStrategy(transport, environmentId, null, 0, 0);
-        VaultBootstrapStrategy vaultStrategy = new VaultBootstrapStrategy(vaultService);
+        S3BackupBootstrapStrategy vaultStrategy = new S3BackupBootstrapStrategy(vaultService);
 
         FallbackServerFirstStrategy strategy = new FallbackServerFirstStrategy(serverStrategy, vaultStrategy);
         BootstrapResult result = strategy.bootstrap(namespaces);

@@ -22,13 +22,14 @@ import org.slf4j.LoggerFactory;
 import io.figchain.avro.model.Fig;
 import io.figchain.avro.model.FigFamily;
 import io.figchain.client.bootstrap.BootstrapStrategy;
+import io.figchain.client.bootstrap.ServerBootstrapStrategy;
 import io.figchain.client.polling.FcUpdateListener;
 import io.figchain.client.polling.PollingStrategy;
 import io.figchain.client.store.FigStore;
 import io.figchain.client.transport.FcClientTransport;
 import io.figchain.client.encryption.EncryptionService;
 import io.figchain.client.util.BufferUtils;
-import io.figchain.client.util.KeyUtils;
+import java.util.UUID;
 
 /**
  * The {@code FcClient} is the main client for interacting with the FigChain
@@ -87,12 +88,14 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
     private final ExecutorService fetchExecutor;
     private final Map<String, String> namespaceCursors;
     private final java.util.UUID environmentId;
-    private PollingStrategy pollingStrategy;
     private final BootstrapStrategy bootstrapStrategy;
     private final CountDownLatch initialFetchLatch = new CountDownLatch(1);
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final Map<String, List<TypedListener<?>>> typedListeners = new ConcurrentHashMap<>();
     private final EncryptionService encryptionService;
+    private final Map<String, String> schemas = new ConcurrentHashMap<>();
+
+    private PollingStrategy pollingStrategy;
 
     private static class TypedListener<T extends SpecificRecord> {
         final Class<T> clazz;
@@ -108,22 +111,22 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
 
     public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor, int maxRetries,
-            long retryDelayMillis, java.util.UUID environmentId) {
+            long retryDelayMillis, UUID environmentId) {
         this(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, maxRetries,
                 retryDelayMillis, environmentId, null);
     }
 
     public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor, int maxRetries,
-            long retryDelayMillis, java.util.UUID environmentId, EvaluationContext defaultContext) {
+            long retryDelayMillis, UUID environmentId, EvaluationContext defaultContext) {
         this(figStore, rolloutEvaluator, fcClientTransport, asOfTimestamp, namespaces, fetchExecutor, environmentId,
-                new io.figchain.client.bootstrap.ServerBootstrapStrategy(fcClientTransport, environmentId, asOfTimestamp, maxRetries, retryDelayMillis),
+                new ServerBootstrapStrategy(fcClientTransport, environmentId, asOfTimestamp, maxRetries, retryDelayMillis),
                 defaultContext, null);
     }
 
     public FigChainClient(FigStore figStore, RolloutEvaluator rolloutEvaluator, FcClientTransport fcClientTransport,
             String asOfTimestamp, Set<String> namespaces, ExecutorService fetchExecutor,
-            java.util.UUID environmentId, BootstrapStrategy bootstrapStrategy, EvaluationContext defaultContext,
+            UUID environmentId, BootstrapStrategy bootstrapStrategy, EvaluationContext defaultContext,
             EncryptionService encryptionService) {
         if (namespaces == null || namespaces.isEmpty()) {
             throw new IllegalArgumentException("At least one namespace must be configured.");
@@ -158,10 +161,10 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
                     fetchInitialData();
                 } catch (Throwable t) {
                     log.error("CRITICAL: Initial fetch crashed with Throwable", t);
-                    if (t instanceof RuntimeException) {
-                        throw (RuntimeException) t;
-                    } else if (t instanceof Error) {
-                        throw (Error) t;
+                    if (t instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    } else if (t instanceof Error error) {
+                        throw error;
                     } else {
                         throw new RuntimeException("Initial fetch failed", t);
                     }
@@ -185,11 +188,12 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
         }
         fcClientTransport.shutdown();
         log.info("Client transport shut down.");
-        fetchExecutor.shutdown();
+
+        // Use shutdownNow to interrupt long-polling tasks immediately
+        fetchExecutor.shutdownNow();
         try {
             if (!fetchExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                log.warn("Fetch executor did not terminate gracefully within 5 seconds. Forcibly shutting down.");
-                fetchExecutor.shutdownNow();
+                log.warn("Fetch executor did not terminate within 5 seconds.");
             }
             log.info("Fetch executor shut down.");
         } catch (InterruptedException e) {
@@ -210,6 +214,9 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
                 if (result.getCursors() != null) {
                     namespaceCursors.putAll(result.getCursors());
                 }
+                if (result.getSchemas() != null) {
+                    this.schemas.putAll(result.getSchemas());
+                }
             }
             log.info("Bootstrap complete.");
         } catch (RuntimeException e) {
@@ -222,6 +229,13 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
     }
 
     @Override
+    public void onUpdate(List<FigFamily> figFamilies, java.util.Map<String, String> schemas) {
+        if (schemas != null) {
+            this.schemas.putAll(schemas);
+        }
+        onUpdate(figFamilies);
+    }
+
     public void onUpdate(List<FigFamily> figFamilies) {
         if (figFamilies != null && !figFamilies.isEmpty()) {
             log.debug("Updating fig store with {} new/updated fig families.", figFamilies.size());
@@ -254,7 +268,17 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
             if (fig.isPresent()) {
                 Fig decryptedFig = decryptFig(fig.get(), figFamily.getDefinition().getNamespace().toString(), figFamily.getDefinition().getKey().toString());
                 byte[] bytes = toByteArray(decryptedFig.getPayload());
-                T decoded = AvroEncoding.deserializeBinary(bytes, listener.clazz);
+
+                org.apache.avro.Schema writerSchema = null;
+                if (figFamily.getDefinition() != null && figFamily.getDefinition().getSchemaUri() != null) {
+                    String schemaUri = figFamily.getDefinition().getSchemaUri().toString();
+                    String schemaJson = getSchemaJsonWithFetch(schemaUri);
+                    if (schemaJson != null) {
+                        writerSchema = new org.apache.avro.Schema.Parser().parse(schemaJson);
+                    }
+                }
+
+                T decoded = AvroEncoding.deserializeBinary(bytes, listener.clazz, writerSchema);
                 listener.listener.accept(decoded);
             }
         } catch (IOException | RuntimeException e) {
@@ -322,7 +346,34 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
         if (fig.isPresent()) {
             try {
                 byte[] bytes = toByteArray(fig.get().getPayload());
-                return Optional.of(AvroEncoding.deserializeBinary(bytes, clazz));
+
+                String namespace = null;
+                if (namespaces.size() == 1) {
+                    namespace = namespaces.iterator().next();
+                } else {
+                    for (String ns : namespaces) {
+                        if (figStore.getFigFamily(ns, key).isPresent()) {
+                            namespace = ns;
+                            break;
+                        }
+                    }
+                }
+
+                org.apache.avro.Schema writerSchema = null;
+                if (namespace != null) {
+                    Optional<FigFamily> familyOpt = figStore.getFigFamily(namespace, key);
+                    if (familyOpt.isPresent()) {
+                        if (familyOpt.get().getDefinition() != null && familyOpt.get().getDefinition().getSchemaUri() != null) {
+                            String schemaUri = familyOpt.get().getDefinition().getSchemaUri().toString();
+                            String schemaJson = getSchemaJsonWithFetch(schemaUri);
+                            if (schemaJson != null) {
+                                writerSchema = new org.apache.avro.Schema.Parser().parse(schemaJson);
+                            }
+                        }
+                    }
+                }
+
+                return Optional.of(AvroEncoding.deserializeBinary(bytes, clazz, writerSchema));
             } catch (IOException e) {
                 log.error("Failed to deserialize fig for key: {}", key, e);
                 return Optional.empty();
@@ -339,6 +390,10 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
      * user-specific attributes (like request-scoped context), this listener may receive default values or fail to match rules.
      * For request-scoped configuration, use getFig() with the appropriate context when needed.
      * </p>
+     * @param <T> the type of Avro model that the value decodes to
+     * @param key the key to listen for updates
+     * @param clazz the class of the Avro model that will hold the decoded value
+     * @param listener the consumer of the updated values
      */
     public <T extends SpecificRecord> void registerListener(String key, Class<T> clazz, Consumer<? super T> listener) {
         if (namespaces.size() != 1) {
@@ -366,6 +421,12 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
      * user-specific attributes (like request-scoped context), this listener may receive default values or fail to match rules.
      * For request-scoped configuration, use getFig() with the appropriate context when needed.
      * </p>
+     * @param <T> the type of Avro model that the value decodes to
+     * @param key the key to listen for updates
+     * @param clazz the class of the Avro model that will hold the decoded value
+     * @param listener the consumer of the updated values
+     * @param namespace the namespace of the key
+     * @param context the evaluation context
      */
     public <T extends SpecificRecord> void registerListener(String namespace, String key, EvaluationContext context, Class<T> clazz, Consumer<? super T> listener) {
         String lookupKey = namespace + ":" + key;
@@ -451,6 +512,49 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
             log.error("Failed to decrypt fig in namespace {}", namespace, e);
             throw new RuntimeException("Failed to decrypt fig", e);
         }
+    }
+
+    private String getSchemaJsonWithFetch(String schemaUri) {
+        if (schemaUri == null) return null;
+        String schemaJson = schemas.get(schemaUri);
+        if (schemaJson != null) return schemaJson;
+
+        // On-demand fetch
+        log.info("Schema {} not found locally, attempting on-demand fetch.", schemaUri);
+        try {
+            // tag:figchain.io,2025:namespace:schemaName:version
+            if (schemaUri.startsWith("tag:")) {
+                String[] parts = schemaUri.substring(4).split(":");
+                if (parts.length >= 4) {
+                    // parts[0] is figchain.io,2025
+                    String ns = java.net.URLDecoder.decode(parts[1], java.nio.charset.StandardCharsets.UTF_8);
+                    String name = java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8);
+                    int version = Integer.parseInt(parts[3]);
+                    schemaJson = fcClientTransport.fetchSchema(ns, name, version);
+                    if (schemaJson != null) {
+                        schemas.put(schemaUri, schemaJson);
+                        return schemaJson;
+                    }
+                }
+            } else if (schemaUri.startsWith("fig://schemas/")) {
+                // fig://schemas/{namespace}/{name}/{version}
+                String path = schemaUri.substring("fig://schemas/".length());
+                String[] parts = path.split("/");
+                if (parts.length >= 3) {
+                    String ns = java.net.URLDecoder.decode(parts[0], java.nio.charset.StandardCharsets.UTF_8);
+                    String name = java.net.URLDecoder.decode(parts[1], java.nio.charset.StandardCharsets.UTF_8);
+                    int version = Integer.parseInt(parts[2]);
+                    schemaJson = fcClientTransport.fetchSchema(ns, name, version);
+                    if (schemaJson != null) {
+                        schemas.put(schemaUri, schemaJson);
+                        return schemaJson;
+                    }
+                }
+            }
+        } catch (NumberFormatException e) {
+            log.error("Failed to fetch schema {} on-demand", schemaUri, e);
+        }
+        return null;
     }
 
     @Override

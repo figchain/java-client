@@ -44,7 +44,7 @@ public class FigChainClientIT {
         CountDownLatch latch = new CountDownLatch(1);
 
         try {
-            builder.withUpdateListener((List<FigFamily> figFamilies) -> {
+            builder.withUpdateListener((figFamilies, schemas) -> {
                 log.debug("Received update with {} figFamilies", figFamilies.size());
                 for (FigFamily family : figFamilies) {
                     log.debug("FigFamily: {} with {} figs", family, family.getFigs().size());
@@ -102,7 +102,7 @@ public class FigChainClientIT {
         CountDownLatch latch = new CountDownLatch(1);
 
         try {
-            builder.withUpdateListener((List<FigFamily> figFamilies) -> {
+            builder.withUpdateListener((figFamilies, schemas) -> {
                 log.debug("Received update with {} figFamilies", figFamilies.size());
                 for (FigFamily family : figFamilies) {
                     log.debug("FigFamily: {} with {} figs", family, family.getFigs().size());

@@ -13,9 +13,9 @@ public class BroadcastFcUpdateListener implements FcUpdateListener {
     }
 
     @Override
-    public void onUpdate(List<FigFamily> figFamilies) {
+    public void onUpdate(List<FigFamily> figFamilies, java.util.Map<String, String> schemas) {
         for (FcUpdateListener listener : listeners) {
-            listener.onUpdate(figFamilies);
+            listener.onUpdate(figFamilies, schemas);
         }
     }
 }

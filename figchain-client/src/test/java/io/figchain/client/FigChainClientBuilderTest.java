@@ -26,14 +26,14 @@ class FigChainClientBuilderTest {
         env.put("FIGCHAIN_AS_OF_TIMESTAMP", "2023-01-01T00:00:00Z");
 
         // Vault Configs
-        env.put("FIGCHAIN_VAULT_ENABLED", "true");
-        env.put("FIGCHAIN_VAULT_BUCKET", "env-bucket");
-        env.put("FIGCHAIN_VAULT_PREFIX", "env-prefix");
-        env.put("FIGCHAIN_VAULT_REGION", "us-west-2");
-        env.put("FIGCHAIN_VAULT_ENDPOINT", "https://s3.example.com");
-        env.put("FIGCHAIN_VAULT_PATH_STYLE_ACCESS", "true");
-        env.put("FIGCHAIN_VAULT_PRIVATE_KEY_PATH", "/path/to/key.pem");
-        env.put("FIGCHAIN_BOOTSTRAP_MODE", "VAULT_ONLY");
+        env.put("FIGCHAIN_S3_BACKUP_ENABLED", "true");
+        env.put("FIGCHAIN_S3_BACKUP_BUCKET", "env-bucket");
+        env.put("FIGCHAIN_S3_BACKUP_PREFIX", "env-prefix");
+        env.put("FIGCHAIN_S3_BACKUP_REGION", "us-west-2");
+        env.put("FIGCHAIN_S3_BACKUP_ENDPOINT", "https://s3.example.com");
+        env.put("FIGCHAIN_S3_BACKUP_PATH_STYLE_ACCESS", "true");
+        env.put("FIGCHAIN_IDENTITY_PRIVATE_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        env.put("FIGCHAIN_BOOTSTRAP_MODE", "S3_BACKUP_ONLY");
 
         Function<String, String> envProvider = env::get;
 
@@ -48,14 +48,14 @@ class FigChainClientBuilderTest {
         assertTrue(namespaces.contains("ns2"));
         assertEquals(5000L, getField(builder, "pollingInterval"));
 
-        assertEquals(true, getField(builder, "vaultEnabled"));
-        assertEquals("env-bucket", getField(builder, "vaultBucket"));
-        assertEquals("env-prefix", getField(builder, "vaultPrefix"));
-        assertEquals("us-west-2", getField(builder, "vaultRegion"));
-        assertEquals("https://s3.example.com", getField(builder, "vaultEndpoint"));
-        assertEquals(true, getField(builder, "vaultPathStyleAccess"));
-        assertEquals("/path/to/key.pem", getField(builder, "vaultPrivateKeyPath"));
-        assertEquals(ClientConfiguration.BootstrapMode.VAULT_ONLY, getField(builder, "bootstrapMode"));
+        assertEquals(true, getField(builder, "s3BackupEnabled"));
+        assertEquals("env-bucket", getField(builder, "s3BackupBucket"));
+        assertEquals("env-prefix", getField(builder, "s3BackupPrefix"));
+        assertEquals("us-west-2", getField(builder, "s3BackupRegion"));
+        assertEquals("https://s3.example.com", getField(builder, "s3BackupEndpoint"));
+        assertEquals(true, getField(builder, "s3BackupPathStyleAccess"));
+        assertEquals("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", getField(builder, "authPrivateKey"));
+        assertEquals(ClientConfiguration.BootstrapMode.S3_BACKUP_ONLY, getField(builder, "bootstrapMode"));
     }
 
     private Object getField(Object target, String fieldName) {

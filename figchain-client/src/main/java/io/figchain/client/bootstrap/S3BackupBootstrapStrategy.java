@@ -1,8 +1,8 @@
 package io.figchain.client.bootstrap;
 
 import io.figchain.avro.model.FigFamily;
-import io.figchain.client.vault.VaultPayload;
-import io.figchain.client.vault.VaultService;
+import io.figchain.client.backup.BackupPayload;
+import io.figchain.client.backup.S3BackupService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,19 +11,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class VaultBootstrapStrategy implements BootstrapStrategy {
+public class S3BackupBootstrapStrategy implements BootstrapStrategy {
 
-    private static final Logger log = LoggerFactory.getLogger(VaultBootstrapStrategy.class);
-    private final VaultService vaultService;
+    private static final Logger log = LoggerFactory.getLogger(S3BackupBootstrapStrategy.class);
+    private final S3BackupService vaultService;
 
-    public VaultBootstrapStrategy(VaultService vaultService) {
+    public S3BackupBootstrapStrategy(S3BackupService vaultService) {
         this.vaultService = vaultService;
     }
 
     @Override
     public BootstrapResult bootstrap(Set<String> namespaces) throws Exception {
         log.info("Bootstrapping from FigChain Vault...");
-        VaultPayload payload = vaultService.loadBackup();
+        BackupPayload payload = vaultService.loadBackup();
 
         List<FigFamily> items = payload.getItems();
         String syncToken = payload.getSyncToken();

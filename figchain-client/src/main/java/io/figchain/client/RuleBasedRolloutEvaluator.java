@@ -83,7 +83,9 @@ public class RuleBasedRolloutEvaluator implements RolloutEvaluator {
             case LESS_THAN:
                 return ruleValue != null && contextValue.compareTo(ruleValue) < 0;
             case SPLIT:
-                if (ruleValue == null) return false;
+                if (ruleValue == null) {
+                    return false;
+                }
                 try {
                     int threshold = Integer.parseInt(ruleValue);
                     int bucket = getBucket(contextValue);
