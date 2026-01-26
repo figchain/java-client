@@ -1,7 +1,6 @@
 package io.figchain.client.encryption;
 
 import io.figchain.client.transport.FcClientTransport;
-import io.figchain.client.util.BufferUtils;
 import io.figchain.avro.model.Fig;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -15,13 +14,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.MessageDigest;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Base64;
 import java.util.HexFormat;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 
 public class EncryptionServiceTest {
@@ -122,32 +117,32 @@ public class EncryptionServiceTest {
 
     private byte[] getPrivateKeyBytes(java.security.PrivateKey k) throws Exception {
         if (k instanceof java.security.interfaces.XECPrivateKey) {
-             java.security.interfaces.XECPrivateKey xec = (java.security.interfaces.XECPrivateKey) k;
-             return xec.getScalar().orElseThrow();
+            java.security.interfaces.XECPrivateKey xec = (java.security.interfaces.XECPrivateKey) k;
+            return xec.getScalar().orElseThrow();
         }
         throw new IllegalArgumentException("Not XECPrivateKey");
     }
 
     private byte[] getPublicKeyBytes(java.security.PublicKey k) throws Exception {
         if (k instanceof java.security.interfaces.XECPublicKey) {
-             java.security.interfaces.XECPublicKey xec = (java.security.interfaces.XECPublicKey) k;
-             java.math.BigInteger u = xec.getU();
-             byte[] uBytes = u.toByteArray();
-             byte[] padded = new byte[32];
-             if (uBytes.length > 32) {
-                 if (uBytes[0] == 0 && uBytes.length == 33) {
-                     System.arraycopy(uBytes, 1, padded, 0, 32);
-                 } else {
-                     throw new RuntimeException("Key too large");
-                 }
-             } else {
-                 System.arraycopy(uBytes, 0, padded, 32 - uBytes.length, uBytes.length);
-             }
-             byte[] le = new byte[32];
-             for(int i=0; i<32; i++){
-                 le[i] = padded[31-i];
-             }
-             return le;
+            java.security.interfaces.XECPublicKey xec = (java.security.interfaces.XECPublicKey) k;
+            java.math.BigInteger u = xec.getU();
+            byte[] uBytes = u.toByteArray();
+            byte[] padded = new byte[32];
+            if (uBytes.length > 32) {
+                if (uBytes[0] == 0 && uBytes.length == 33) {
+                    System.arraycopy(uBytes, 1, padded, 0, 32);
+                } else {
+                    throw new RuntimeException("Key too large");
+                }
+            } else {
+                System.arraycopy(uBytes, 0, padded, 32 - uBytes.length, uBytes.length);
+            }
+            byte[] le = new byte[32];
+            for(int i=0; i<32; i++){
+                le[i] = padded[31-i];
+            }
+            return le;
         }
         throw new IllegalArgumentException("Not XECPublicKey");
     }

@@ -4,9 +4,6 @@ import io.figchain.client.transport.TokenProvider;
 import io.figchain.client.transport.SharedSecretTokenProvider;
 import io.figchain.client.transport.PrivateKeyTokenProvider;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.figchain.client.backup.S3BackupService;
@@ -46,8 +43,6 @@ import java.util.concurrent.ExecutorService;
  * A builder for creating {@link FigChainClient} instances.
  */
 public class FigChainClientBuilder {
-
-    private static final Logger log = LoggerFactory.getLogger(FigChainClientBuilder.class);
 
     private FigStore figStore;
     private RolloutEvaluator rolloutEvaluator;
@@ -341,11 +336,11 @@ public class FigChainClientBuilder {
             this.s3BackupEndpoint = node.get("s3BackupEndpoint").asText();
         }
         if (node.has("bootstrapMode")) {
-             try {
-                 this.bootstrapMode = ClientConfiguration.BootstrapMode.valueOf(node.get("bootstrapMode").asText());
-             } catch (Exception e) {
-                 // ignore or log
-             }
+            try {
+                this.bootstrapMode = ClientConfiguration.BootstrapMode.valueOf(node.get("bootstrapMode").asText());
+            } catch (Exception e) {
+                throw new RuntimeException("Invalid bootstrap mode: " + node.get("bootstrapMode").asText(), e);
+            }
         }
 
         return this;
@@ -592,14 +587,9 @@ public class FigChainClientBuilder {
         ExecutorService fetchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
         EncryptionService encryptionService = null;
+        // Encryption requires a dedicated private key - no fallback to auth key
         if (encryptionPrivateKey != null) {
-             encryptionService = new EncryptionService(fcClientTransport, encryptionPrivateKey.trim());
-        } else if (authPrivateKey != null) {
-            try {
-                encryptionService = new EncryptionService(fcClientTransport, authPrivateKey.trim());
-            } catch (Exception e) {
-                log.warn("Failed to initialize encryption service with auth private key, proceeding without it.", e);
-            }
+            encryptionService = new EncryptionService(fcClientTransport, encryptionPrivateKey.trim());
         }
 
         if (encryptionService != null && s3BackupEnabled && s3BackupBucket != null) {

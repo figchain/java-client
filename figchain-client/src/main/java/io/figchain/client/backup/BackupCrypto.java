@@ -106,9 +106,9 @@ public class BackupCrypto {
             swap = swap.xor(k_t);
 
             if (swap.equals(BigInteger.ONE)) {
-               BigInteger temp;
-               temp = x_2; x_2 = x_3; x_3 = temp;
-               temp = z_2; z_2 = z_3; z_3 = temp;
+                BigInteger temp;
+                temp = x_2; x_2 = x_3; x_3 = temp;
+                temp = z_2; z_2 = z_3; z_3 = temp;
             }
             swap = k_t;
 
@@ -136,9 +136,9 @@ public class BackupCrypto {
         }
 
         if (swap.equals(BigInteger.ONE)) {
-           BigInteger temp;
-           temp = x_2; x_2 = x_3; x_3 = temp;
-           temp = z_2; z_2 = z_3; z_3 = temp;
+            BigInteger temp;
+            temp = x_2; x_2 = x_3; x_3 = temp;
+            temp = z_2; z_2 = z_3; z_3 = temp;
         }
 
         BigInteger result = x_2.multiply(z_2.modInverse(P)).mod(P);
@@ -151,9 +151,9 @@ public class BackupCrypto {
         // Reverse for BigInteger (which expects big-endian)
         // Wire format is little-endian
         for (int i = 0; i < 16; i++) {
-             byte tmp = copy[i];
-             copy[i] = copy[31-i];
-             copy[31-i] = tmp;
+            byte tmp = copy[i];
+            copy[i] = copy[31-i];
+            copy[31-i] = tmp;
         }
         // Mask the high bit of the last byte (which is now first byte)
         copy[0] &= 0x7F;
@@ -167,16 +167,16 @@ public class BackupCrypto {
         // Copy to end of out (padding with zeros if needed)
         int len = in.length;
         if (len > 32) {
-             System.arraycopy(in, len - 32, out, 0, 32);
+            System.arraycopy(in, len - 32, out, 0, 32);
         } else {
-             System.arraycopy(in, 0, out, 32 - len, len);
+            System.arraycopy(in, 0, out, 32 - len, len);
         }
 
         // Reverse to little-endian
         for (int i = 0; i < 16; i++) {
-             byte tmp = out[i];
-             out[i] = out[31-i];
-             out[31-i] = tmp;
+            byte tmp = out[i];
+            out[i] = out[31-i];
+            out[31-i] = tmp;
         }
         return out;
     }
