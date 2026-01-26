@@ -536,20 +536,8 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
                         return schemaJson;
                     }
                 }
-            } else if (schemaUri.startsWith("fig://schemas/")) {
-                // fig://schemas/{namespace}/{name}/{version}
-                String path = schemaUri.substring("fig://schemas/".length());
-                String[] parts = path.split("/");
-                if (parts.length >= 3) {
-                    String ns = java.net.URLDecoder.decode(parts[0], java.nio.charset.StandardCharsets.UTF_8);
-                    String name = java.net.URLDecoder.decode(parts[1], java.nio.charset.StandardCharsets.UTF_8);
-                    int version = Integer.parseInt(parts[2]);
-                    schemaJson = fcClientTransport.fetchSchema(ns, name, version);
-                    if (schemaJson != null) {
-                        schemas.put(schemaUri, schemaJson);
-                        return schemaJson;
-                    }
-                }
+            } else {
+                log.warn("Unsupported schema URI scheme: {}", schemaUri);
             }
         } catch (NumberFormatException e) {
             log.error("Failed to fetch schema {} on-demand", schemaUri, e);
