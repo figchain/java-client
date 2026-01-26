@@ -97,17 +97,12 @@ class FixedRatePollingStrategyTest {
 
     @Test
     void fetchUpdates_doesNotCallListener_whenResponseIsNull() throws Exception {
-         // Setup null response (simulating some failure or unexpected behavior, though transport usually throws)
-         // But if transport returns null, we should probably handle it gracefully.
-         // The current code might throw NPE if response is null.
-         // Let's assume transport returns a valid object or throws.
-         // If transport throws, it's caught.
+        // Setup null response (simulating some failure or unexpected behavior, though transport usually throws)
+        when(mockTransport.fetchUpdates(anyString(), anyString())).thenThrow(new RuntimeException("Fetch failed"));
 
-         when(mockTransport.fetchUpdates(anyString(), anyString())).thenThrow(new RuntimeException("Fetch failed"));
+        invokeFetchUpdates();
 
-         invokeFetchUpdates();
-
-         verify(mockUpdateListener, never()).onUpdate(any(), any());
+        verify(mockUpdateListener, never()).onUpdate(any(), any());
     }
 
     private void invokeFetchUpdates() throws Exception {

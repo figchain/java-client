@@ -170,4 +170,40 @@ public class EncryptionServiceTest {
         return okm;
     }
 
+    @Test
+    public void testDecryptX25519() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("X25519");
+        KeyPair bobKp = kpg.generateKeyPair();
+        byte[] bobPrivateBytes = getPrivateKeyBytes(bobKp.getPrivate());
+
+        KeyPair aliceKp = kpg.generateKeyPair();
+
+        KeyAgreement ka = KeyAgreement.getInstance("X25519");
+        ka.init(aliceKp.getPrivate());
+        ka.doPhase(bobKp.getPublic(), true);
+        byte[] sharedSecret = ka.generateSecret();
+
+        byte[] kek = hkdfSha256(sharedSecret);
+
+        byte[] plaintext = "Hello World".getBytes(StandardCharsets.UTF_8);
+        byte[] iv = new byte[12];
+        new java.security.SecureRandom().nextBytes(iv);
+
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        GCMParameterSpec spec = new GCMParameterSpec(128, iv);
+        SecretKeySpec keySpec = new SecretKeySpec(kek, "AES");
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec, spec);
+        byte[] ciphertext = cipher.doFinal(plaintext);
+
+        byte[] alicePubBytes = getPublicKeyBytes(aliceKp.getPublic());
+        byte[] blob = new byte[32 + 12 + ciphertext.length];
+        System.arraycopy(alicePubBytes, 0, blob, 0, 32);
+        System.arraycopy(iv, 0, blob, 32, 12);
+        System.arraycopy(ciphertext, 0, blob, 44, ciphertext.length);
+
+        byte[] decrypted = EncryptionService.decryptX25519(blob, bobPrivateBytes);
+
+        assertArrayEquals(plaintext, decrypted);
+    }
+
 }

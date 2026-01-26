@@ -1,6 +1,6 @@
 package io.figchain.client.backup;
 
-import io.figchain.client.encryption.EncryptionCrypto;
+import io.figchain.client.encryption.EncryptionService;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -23,8 +23,7 @@ public class BackupCrypto {
      */
     public static byte[] decryptAesKey(String encryptedKeyBase64, byte[] privateKeyBytes) {
         byte[] encryptedBytes = Base64.getDecoder().decode(encryptedKeyBase64);
-        // Use EncryptionCrypto for consistency (X25519 + HKDF + AES-GCM)
-        return EncryptionCrypto.decryptX25519(encryptedBytes, privateKeyBytes);
+        return EncryptionService.decryptX25519(encryptedBytes, privateKeyBytes);
     }
 
     /**
@@ -36,7 +35,7 @@ public class BackupCrypto {
      */
     public static String decryptData(String encryptedDataBase64, byte[] aesKey) {
         byte[] encryptedBytes = Base64.getDecoder().decode(encryptedDataBase64);
-        byte[] decryptedBytes = EncryptionCrypto.decryptAesGcm(encryptedBytes, aesKey);
+        byte[] decryptedBytes = EncryptionService.decryptAesGcm(encryptedBytes, aesKey);
         return new String(decryptedBytes, StandardCharsets.UTF_8);
     }
 
