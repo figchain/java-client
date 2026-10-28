@@ -55,10 +55,12 @@
         <avro.version>1.12.1</avro.version>
         <slf4j.version>2.0.17</slf4j.version>
         <logback.version>1.5.24</logback.version>
-        <jackson.version>2.19.4</jackson.version>
-        <junit.jupiter.version>6.0.1</junit.jupiter.version>
-        <mockito.version>5.20.0</mockito.version>
-        <aws.bom.version>2.41.10</aws.bom.version>
+        <jackson.version>2.22.2</jackson.version>
+        <!-- jackson-annotations 2.x has no patch releases; tracks minor only -->
+        <jackson.annotations.version>2.22</jackson.annotations.version>
+        <junit.jupiter.version>6.1.3</junit.jupiter.version>
+        <mockito.version>5.23.0</mockito.version>
+        <aws.bom.version>2.53.1</aws.bom.version>
     </properties>
 
     <dependencyManagement>
@@ -96,7 +98,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson.annotations.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>

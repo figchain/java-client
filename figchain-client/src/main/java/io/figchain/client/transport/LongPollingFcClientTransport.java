@@ -95,7 +95,7 @@ public class LongPollingFcClientTransport extends HttpFcClientTransport {
                 }
             } catch (IOException e) {
                 String msg = e.getMessage();
-                if (msg != null && (msg.contains("connection closed") || msg.contains("header parser received no bytes"))) {
+                if (msg != null && (msg.contains("connection closed") || msg.contains("header parser received no bytes") || msg.contains("selector manager closed"))) {
                     log.debug("Long polling connection closed (likely shutdown) for namespace: {}", namespace, e);
                 } else {
                     log.error("Failed to fetch updates via long polling for namespace: {}", namespace, e);

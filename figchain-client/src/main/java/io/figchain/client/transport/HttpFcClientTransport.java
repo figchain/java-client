@@ -19,7 +19,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.stream.Collectors;
-import java.util.ArrayList;
 
 public class HttpFcClientTransport implements FcClientTransport {
 

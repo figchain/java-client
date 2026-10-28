@@ -71,6 +71,7 @@ public class FigChainClientBuilder {
     private String authCredentialId;
     private String tenantId;
     private ClientConfiguration.BootstrapMode bootstrapMode = ClientConfiguration.BootstrapMode.SERVER_FIRST;
+    private boolean useLongPolling = true;
 
     /**
      * Sets the default evaluation context to use for getFig overloads.
@@ -230,28 +231,38 @@ public class FigChainClientBuilder {
         return this;
     }
 
-    public FigChainClientBuilder withS3BackupBucket(String vaultBucket) {
-        this.s3BackupBucket = vaultBucket;
+    public FigChainClientBuilder withS3BackupBucket(String s3BackupBucket) {
+        this.s3BackupBucket = s3BackupBucket;
         return this;
     }
 
-    public FigChainClientBuilder withS3BackupPrefix(String vaultPrefix) {
-        this.s3BackupPrefix = vaultPrefix;
+    public FigChainClientBuilder withS3BackupPrefix(String s3BackupPrefix) {
+        this.s3BackupPrefix = s3BackupPrefix;
         return this;
     }
 
-    public FigChainClientBuilder withS3BackupRegion(String vaultRegion) {
-        this.s3BackupRegion = vaultRegion;
+    public FigChainClientBuilder withS3BackupRegion(String s3BackupRegion) {
+        this.s3BackupRegion = s3BackupRegion;
         return this;
     }
 
-    public FigChainClientBuilder withS3BackupEndpoint(String vaultEndpoint) {
-        this.s3BackupEndpoint = vaultEndpoint;
+    public FigChainClientBuilder withS3BackupEndpoint(String s3BackupEndpoint) {
+        this.s3BackupEndpoint = s3BackupEndpoint;
         return this;
     }
 
-    public FigChainClientBuilder withS3BackupPathStyleAccess(boolean vaultPathStyleAccess) {
-        this.s3BackupPathStyleAccess = vaultPathStyleAccess;
+    public FigChainClientBuilder withS3BackupPathStyleAccess(boolean s3BackupPathStyleAccess) {
+        this.s3BackupPathStyleAccess = s3BackupPathStyleAccess;
+        return this;
+    }
+    
+    public FigChainClientBuilder withUseLongPolling(boolean useLongPolling) {
+        this.useLongPolling = useLongPolling;
+        if (useLongPolling) {
+            this.transport = Transport.LONG_POLLING;
+        } else {
+            this.transport = Transport.POLLING; // Assuming HTTP is the other option
+        }
         return this;
     }
 
@@ -336,11 +347,10 @@ public class FigChainClientBuilder {
             this.s3BackupEndpoint = node.get("s3BackupEndpoint").asText();
         }
         if (node.has("bootstrapMode")) {
-            try {
-                this.bootstrapMode = ClientConfiguration.BootstrapMode.valueOf(node.get("bootstrapMode").asText());
-            } catch (Exception e) {
-                throw new RuntimeException("Invalid bootstrap mode: " + node.get("bootstrapMode").asText(), e);
-            }
+            this.bootstrapMode = ClientConfiguration.BootstrapMode.fromString(node.get("bootstrapMode").asText());
+        }
+        if (node.has("useLongPolling")) {
+            this.useLongPolling = node.get("useLongPolling").asBoolean();
         }
 
         return this;
@@ -384,6 +394,7 @@ public class FigChainClientBuilder {
         this.authClientId = config.getAuthClientId();
         this.tenantId = config.getTenantId();
         this.bootstrapMode = config.getBootstrapMode();
+        this.useLongPolling = config.isUseLongPolling();
 
         return this;
     }
@@ -410,6 +421,8 @@ public class FigChainClientBuilder {
      *   <li>FIGCHAIN_S3_BACKUP_PATH_STYLE_ACCESS</li>
      *   <li>FIGCHAIN_S3_BACKUP_PRIVATE_KEY_PATH</li>
      *   <li>FIGCHAIN_BOOTSTRAP_MODE</li>
+     *   <li>FIGCHAIN_BOOTSTRAP_STRATEGY</li>
+     *   <li>FIGCHAIN_USE_LONG_POLLING</li>
      * </ul>
      *
      * @return this builder
@@ -493,8 +506,19 @@ public class FigChainClientBuilder {
         String envTenantId = envProvider.apply("FIGCHAIN_TENANT_ID");
         if (envTenantId != null) this.tenantId = envTenantId;
 
-        String envBootstrapMode = envProvider.apply("FIGCHAIN_BOOTSTRAP_MODE");
-        if (envBootstrapMode != null) this.bootstrapMode = ClientConfiguration.BootstrapMode.valueOf(envBootstrapMode);
+        // Try STRATEGY first, then MODE
+        String envBootstrapStrategy = envProvider.apply("FIGCHAIN_BOOTSTRAP_STRATEGY");
+        if (envBootstrapStrategy != null) {
+            this.bootstrapMode = ClientConfiguration.BootstrapMode.fromString(envBootstrapStrategy);
+        } else {
+            String envBootstrapMode = envProvider.apply("FIGCHAIN_BOOTSTRAP_MODE");
+            if (envBootstrapMode != null) this.bootstrapMode = ClientConfiguration.BootstrapMode.fromString(envBootstrapMode);
+        }
+
+        String envUseLongPolling = envProvider.apply("FIGCHAIN_USE_LONG_POLLING");
+        if (envUseLongPolling != null) {
+            this.useLongPolling = Boolean.parseBoolean(envUseLongPolling);
+        }
 
         return this;
     }
@@ -545,11 +569,13 @@ public class FigChainClientBuilder {
         }
 
         FcClientTransport fcClientTransport;
-        if (transport == Transport.LONG_POLLING) {
-            URI lpUri = (longPollingBaseUrl != null) ? URI.create(longPollingBaseUrl) : baseUri;
-            fcClientTransport = new LongPollingFcClientTransport(httpClient, baseUri, tokenProvider, lpUri, environmentId);
+        // Prioritize explicit transport setting if not default, otherwise use flag
+        if (transport == Transport.LONG_POLLING && useLongPolling) {
+             URI lpUri = (longPollingBaseUrl != null) ? URI.create(longPollingBaseUrl) : baseUri;
+             fcClientTransport = new LongPollingFcClientTransport(httpClient, baseUri, tokenProvider, lpUri, environmentId);
         } else {
-            fcClientTransport = new HttpFcClientTransport(httpClient, baseUri, tokenProvider, environmentId);
+             // Fallback to HTTP if useLongPolling is false, even if transport was default
+             fcClientTransport = new HttpFcClientTransport(httpClient, baseUri, tokenProvider, environmentId);
         }
 
         // Configure Bootstrap Strategy
@@ -610,7 +636,7 @@ public class FigChainClientBuilder {
         final FcUpdateListener broadcastListener = new BroadcastFcUpdateListener(this.updateListeners);
 
         PollingStrategy pollingStrategy;
-        if (transport == Transport.LONG_POLLING) {
+        if (transport == Transport.LONG_POLLING && useLongPolling) {
             pollingStrategy = new LongPollingStrategy(fcClientTransport, broadcastListener, fetchExecutor, namespaces, fcClient.getNamespaceCursors());
         } else {
             pollingStrategy = new FixedRatePollingStrategy(fcClientTransport, broadcastListener, scheduler, fetchExecutor, pollingInterval, namespaces, fcClient.getNamespaceCursors());

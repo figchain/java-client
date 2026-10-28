@@ -210,13 +210,10 @@ public class FigChainClient implements FcUpdateListener, AutoCloseable {
             io.figchain.client.bootstrap.BootstrapResult result = bootstrapStrategy.bootstrap(namespaces);
 
             if (result != null) {
-                onUpdate(result.getFigFamilies());
                 if (result.getCursors() != null) {
                     namespaceCursors.putAll(result.getCursors());
                 }
-                if (result.getSchemas() != null) {
-                    this.schemas.putAll(result.getSchemas());
-                }
+                onUpdate(result.getFigFamilies(), result.getSchemas());
             }
             log.info("Bootstrap complete.");
         } catch (RuntimeException e) {

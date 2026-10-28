@@ -20,22 +20,36 @@ public class ClientConfiguration {
     private String authClientId;
     private String tenantId;
 
-    // Vault (S3 Backup) Configuration
+    // S3 Backup Configuration
     private boolean s3BackupEnabled = false;
-    private String vaultBucket;
-    private String vaultPrefix = "";
-    private String vaultRegion = "us-east-1";
-    private String vaultEndpoint;
-    private boolean vaultPathStyleAccess = false;
+    private String s3BackupBucket;
+    private String s3BackupPrefix = "";
+    private String s3BackupRegion = "us-east-1";
+    private String s3BackupEndpoint;
+    private boolean s3BackupPathStyleAccess = false;
     private String authPrivateKey;
     private String encryptionPrivateKey;
     private BootstrapMode bootstrapMode = BootstrapMode.SERVER_FIRST;
+    private boolean useLongPolling = true;
 
     public enum BootstrapMode {
         SERVER_FIRST,
         S3_BACKUP_FIRST,
         SERVER_ONLY,
-        S3_BACKUP_ONLY
+        S3_BACKUP_ONLY;
+
+        public static BootstrapMode fromString(String value) {
+            if (value == null) return SERVER_FIRST;
+            String normalized = value.trim().toUpperCase().replace("-", "_");
+            try {
+                return valueOf(normalized);
+            } catch (IllegalArgumentException e) {
+                // Try to map known aliases
+                if (normalized.equals("SERVER")) return SERVER_ONLY;
+                if (normalized.equals("HYBRID")) return S3_BACKUP_FIRST; // Hybrid usually means backup then server
+                throw e;
+            }
+        }
     }
 
     public String getAuthPrivateKey() {
@@ -135,43 +149,43 @@ public class ClientConfiguration {
     }
 
     public String getS3BackupBucket() {
-        return vaultBucket;
+        return s3BackupBucket;
     }
 
-    public void setS3BackupBucket(String vaultBucket) {
-        this.vaultBucket = vaultBucket;
+    public void setS3BackupBucket(String s3BackupBucket) {
+        this.s3BackupBucket = s3BackupBucket;
     }
 
     public String getS3BackupPrefix() {
-        return vaultPrefix;
+        return s3BackupPrefix;
     }
 
-    public void setS3BackupPrefix(String vaultPrefix) {
-        this.vaultPrefix = vaultPrefix;
+    public void setS3BackupPrefix(String s3BackupPrefix) {
+        this.s3BackupPrefix = s3BackupPrefix;
     }
 
     public String getS3BackupRegion() {
-        return vaultRegion;
+        return s3BackupRegion;
     }
 
-    public void setS3BackupRegion(String vaultRegion) {
-        this.vaultRegion = vaultRegion;
+    public void setS3BackupRegion(String s3BackupRegion) {
+        this.s3BackupRegion = s3BackupRegion;
     }
 
     public String getS3BackupEndpoint() {
-        return vaultEndpoint;
+        return s3BackupEndpoint;
     }
 
-    public void setS3BackupEndpoint(String vaultEndpoint) {
-        this.vaultEndpoint = vaultEndpoint;
+    public void setS3BackupEndpoint(String s3BackupEndpoint) {
+        this.s3BackupEndpoint = s3BackupEndpoint;
     }
 
     public boolean isS3BackupPathStyleAccess() {
-        return vaultPathStyleAccess;
+        return s3BackupPathStyleAccess;
     }
 
-    public void setS3BackupPathStyleAccess(boolean vaultPathStyleAccess) {
-        this.vaultPathStyleAccess = vaultPathStyleAccess;
+    public void setS3BackupPathStyleAccess(boolean s3BackupPathStyleAccess) {
+        this.s3BackupPathStyleAccess = s3BackupPathStyleAccess;
     }
 
     public BootstrapMode getBootstrapMode() {
@@ -180,6 +194,14 @@ public class ClientConfiguration {
 
     public void setBootstrapMode(BootstrapMode bootstrapMode) {
         this.bootstrapMode = bootstrapMode;
+    }
+    
+    public boolean isUseLongPolling() {
+        return useLongPolling;
+    }
+
+    public void setUseLongPolling(boolean useLongPolling) {
+        this.useLongPolling = useLongPolling;
     }
 
     public String getAuthClientId() {
