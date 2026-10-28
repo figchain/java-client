@@ -26,6 +26,15 @@ public interface FcClientTransport {
     UpdateFetchResponse fetchUpdates(String namespace, String cursor);
 
     /**
+     * Fetches updates after {@code cursor}, letting the server hold the request open for up
+     * to {@code wait} until updates arrive (long polling). {@link java.time.Duration#ZERO}
+     * returns immediately, like {@link #fetchUpdates(String, String)}.
+     */
+    default UpdateFetchResponse fetchUpdates(String namespace, String cursor, java.time.Duration wait) {
+        return fetchUpdates(namespace, cursor);
+    }
+
+    /**
      * Fetches the Namespace Key for a given namespace.
      * @param namespace the namespace
      * @return the namespace key

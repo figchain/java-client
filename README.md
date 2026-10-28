@@ -8,7 +8,7 @@ Official Java client library for [FigChain](https://figchain.io) configuration m
 
 ## Features
 
-- **Real-time configuration updates** - Subscribe to configuration changes with long polling or fixed-rate strategies
+- **Real-time configuration updates** - Long polling by default; set `useLongPolling` to `false` (or `FIGCHAIN_USE_LONG_POLLING=false`) to poll every `pollingInterval` instead. Long polling falls back to polling automatically if the network keeps cutting long-held requests
 - **Rule-based rollouts** - Evaluate feature flags and configurations based on user context
 - **Type-safe models** - Avro-based serialization for efficient data transfer
 - **Flexible storage** - In-memory or custom storage backends

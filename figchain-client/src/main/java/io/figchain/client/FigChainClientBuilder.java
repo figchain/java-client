@@ -20,11 +20,9 @@ import io.figchain.client.transport.FcClientTransport;
 
 import io.figchain.client.polling.BroadcastFcUpdateListener;
 import io.figchain.client.polling.FcUpdateListener;
-import io.figchain.client.polling.FixedRatePollingStrategy;
-import io.figchain.client.polling.LongPollingStrategy;
+import io.figchain.client.polling.UpdatePollingStrategy;
 import io.figchain.client.polling.PollingStrategy;
 import io.figchain.client.transport.HttpFcClientTransport;
-import io.figchain.client.transport.LongPollingFcClientTransport;
 import io.figchain.client.transport.Transport;
 
 import java.io.File;
@@ -36,7 +34,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -261,7 +258,7 @@ public class FigChainClientBuilder {
         if (useLongPolling) {
             this.transport = Transport.LONG_POLLING;
         } else {
-            this.transport = Transport.POLLING; // Assuming HTTP is the other option
+            this.transport = Transport.POLLING;
         }
         return this;
     }
@@ -568,15 +565,11 @@ public class FigChainClientBuilder {
             tokenProvider = new SharedSecretTokenProvider(clientSecret);
         }
 
-        FcClientTransport fcClientTransport;
-        // Prioritize explicit transport setting if not default, otherwise use flag
-        if (transport == Transport.LONG_POLLING && useLongPolling) {
-             URI lpUri = (longPollingBaseUrl != null) ? URI.create(longPollingBaseUrl) : baseUri;
-             fcClientTransport = new LongPollingFcClientTransport(httpClient, baseUri, tokenProvider, lpUri, environmentId);
-        } else {
-             // Fallback to HTTP if useLongPolling is false, even if transport was default
-             fcClientTransport = new HttpFcClientTransport(httpClient, baseUri, tokenProvider, environmentId);
-        }
+        // Long polling and polling share one transport and one loop; they differ only in the
+        // requested server wait and the pause between requests (see UpdatePollingStrategy).
+        boolean longPolling = transport == Transport.LONG_POLLING && useLongPolling;
+        URI updatesUri = (longPolling && longPollingBaseUrl != null) ? URI.create(longPollingBaseUrl) : baseUri;
+        FcClientTransport fcClientTransport = new HttpFcClientTransport(httpClient, baseUri, tokenProvider, environmentId, updatesUri);
 
         // Configure Bootstrap Strategy
         BootstrapStrategy bootstrapStrategy;
@@ -609,7 +602,6 @@ public class FigChainClientBuilder {
             bootstrapStrategy = serverStrategy;
         }
 
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         ExecutorService fetchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
         EncryptionService encryptionService = null;
@@ -635,12 +627,8 @@ public class FigChainClientBuilder {
         this.updateListeners.add(fcClient);
         final FcUpdateListener broadcastListener = new BroadcastFcUpdateListener(this.updateListeners);
 
-        PollingStrategy pollingStrategy;
-        if (transport == Transport.LONG_POLLING && useLongPolling) {
-            pollingStrategy = new LongPollingStrategy(fcClientTransport, broadcastListener, fetchExecutor, namespaces, fcClient.getNamespaceCursors());
-        } else {
-            pollingStrategy = new FixedRatePollingStrategy(fcClientTransport, broadcastListener, scheduler, fetchExecutor, pollingInterval, namespaces, fcClient.getNamespaceCursors());
-        }
+        PollingStrategy pollingStrategy = new UpdatePollingStrategy(fcClientTransport, broadcastListener, fetchExecutor,
+                namespaces, fcClient.getNamespaceCursors(), longPolling, pollingInterval);
 
         fcClient.setPollingStrategy(pollingStrategy);
 
