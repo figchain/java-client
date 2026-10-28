@@ -19,7 +19,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.stream.Collectors;
-import java.util.ArrayList;
 
 public class HttpFcClientTransport implements FcClientTransport {
 
@@ -27,6 +26,8 @@ public class HttpFcClientTransport implements FcClientTransport {
 
     protected final HttpClient httpClient;
     private final URI baseUrl;
+    /** Base URL for update fetches; differs from baseUrl when long polling goes via its own endpoint. */
+    private final URI updatesBaseUrl;
     private final TokenProvider tokenProvider;
     private final java.util.UUID environmentId;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -97,8 +98,17 @@ public class HttpFcClientTransport implements FcClientTransport {
     }
 
     public HttpFcClientTransport(HttpClient httpClient, URI baseUrl, TokenProvider tokenProvider, java.util.UUID environmentId) {
+        this(httpClient, baseUrl, tokenProvider, environmentId, baseUrl);
+    }
+
+    /**
+     * @param updatesBaseUrl base URL for update fetches, e.g. a dedicated long-polling endpoint;
+     *                       {@code null} uses {@code baseUrl}
+     */
+    public HttpFcClientTransport(HttpClient httpClient, URI baseUrl, TokenProvider tokenProvider, java.util.UUID environmentId, URI updatesBaseUrl) {
         this.httpClient = httpClient;
         this.baseUrl = baseUrl;
+        this.updatesBaseUrl = updatesBaseUrl != null ? updatesBaseUrl : baseUrl;
         this.tokenProvider = tokenProvider;
         if (environmentId == null) {
             throw new IllegalArgumentException("environmentId must not be null");
@@ -110,8 +120,18 @@ public class HttpFcClientTransport implements FcClientTransport {
         }
     }
 
+    /** Tells the server how many seconds it may hold an update request open; absent or 0 means respond now. */
+    public static final String LONG_POLL_TIMEOUT_HEADER = "X-Long-Poll-Timeout";
+    /** Added to the long-poll wait for the client timeout, so a silently dropped connection fails promptly. */
+    private static final Duration REQUEST_SLACK = Duration.ofSeconds(5);
+
     @Override
     public UpdateFetchResponse fetchUpdates(String namespace, String cursor) {
+        return fetchUpdates(namespace, cursor, Duration.ZERO);
+    }
+
+    @Override
+    public UpdateFetchResponse fetchUpdates(String namespace, String cursor, Duration wait) {
         try {
         UpdateFetchRequest.Builder requestBuilder = UpdateFetchRequest.newBuilder()
             .setNamespace(namespace)
@@ -125,15 +145,25 @@ public class HttpFcClientTransport implements FcClientTransport {
 
             byte[] avroBytes = AvroEncoding.serializeWithSchema(request);
 
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(this.baseUrl.resolve("data/updates"))
+            HttpRequest.Builder httpRequest = HttpRequest.newBuilder()
+                    .uri(this.updatesBaseUrl.resolve("data/updates"))
                     .header("Authorization", authHeaderValue())
                     .header("Content-Type", "application/octet-stream")
                     .POST(HttpRequest.BodyPublishers.ofByteArray(avroBytes))
-                    .timeout(Duration.ofSeconds(5))
-                    .build();
+                    .timeout(wait.plus(REQUEST_SLACK));
+            if (wait.toSeconds() > 0) {
+                httpRequest.header(LONG_POLL_TIMEOUT_HEADER, String.valueOf(wait.toSeconds()));
+            }
 
-            HttpResponse<byte[]> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofByteArray());
+            HttpResponse<byte[]> response = httpClient.send(httpRequest.build(), HttpResponse.BodyHandlers.ofByteArray());
+
+            if (response.statusCode() == 204) {
+                // Long poll ended with no updates
+                return UpdateFetchResponse.newBuilder()
+                        .setCursor(cursor)
+                        .setFigFamilies(new java.util.ArrayList<>())
+                        .build();
+            }
 
             if (log.isDebugEnabled()) {
                 log.debug("HTTP response for updates fetch: status={}, body.length={} bytes",

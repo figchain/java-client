@@ -3,6 +3,7 @@ package io.figchain.client.backup;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.figchain.client.dto.NamespaceKey;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.regions.Region;
@@ -38,13 +39,13 @@ public class S3EnvelopeProvider {
         if (region != null) {
             builder.region(Region.of(region));
         } else {
-             builder.region(Region.US_EAST_1);
+            builder.region(Region.US_EAST_1);
         }
 
         if (accessKey != null && !accessKey.isEmpty() && secretKey != null && !secretKey.isEmpty()) {
             builder.credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)));
         } else {
-            builder.credentialsProvider(software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider.create());
+            builder.credentialsProvider(DefaultCredentialsProvider.builder().build());
         }
 
         if (endpoint != null && !endpoint.isEmpty()) {

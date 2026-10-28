@@ -198,7 +198,9 @@ class FigChainClientTest {
     @Test
     void testFcClientThrowsExceptionIfNoNamespaces() {
         assertThrows(IllegalArgumentException.class, () -> {
-            new FigChainClient(mockFigStore, mockRolloutEvaluator, mockFcClientTransport, null, Collections.emptySet(), mockFetchExecutor, 3, 100L, java.util.UUID.randomUUID());
+            try (FigChainClient client = new FigChainClient(mockFigStore, mockRolloutEvaluator, mockFcClientTransport, null, Collections.emptySet(), mockFetchExecutor, 3, 100L, java.util.UUID.randomUUID())) {
+                // do nothing
+            }
         });
     }
 

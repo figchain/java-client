@@ -1,11 +1,10 @@
 package io.figchain.client.transport;
 
 import com.auth0.jwt.JWT;
-import com.auth0.jwt.algorithms.Algorithm;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * Token provider that generates JWTs signed with a private key.
@@ -65,6 +64,7 @@ public class PrivateKeyTokenProvider implements TokenProvider {
                 .withSubject(serviceAccountId)
                 .withIssuedAt(Date.from(now))
                 .withExpiresAt(Date.from(exp))
+                .withClaim("jti", UUID.randomUUID().toString())
                 .withKeyId(keyId);
 
         if (tenantId != null) {
