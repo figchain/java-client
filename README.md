@@ -16,46 +16,25 @@ Official Java client library for [FigChain](https://figchain.io) configuration m
 
 ## Installation
 
-### Maven
-
-Add the FigChain repository to your `pom.xml`:
+Releases are built from GitHub tags by [JitPack](https://jitpack.io). Use a release tag as the version.
 
 ```xml
 <repositories>
     <repository>
-        <id>figchain-public</id>
-        <url>https://maven.repo.figchain.io/releases</url>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
     </repository>
 </repositories>
-```
 
-Add the dependency:
-
-```xml
 <dependency>
-    <groupId>io.figchain</groupId>
+    <groupId>com.github.figchain.java-client</groupId>
     <artifactId>figchain-client</artifactId>
-    <version>1.3.0</version>
+    <version>${figchain.version}</version>
 </dependency>
 ```
 
-### Gradle
-
-Add the FigChain repository to your `build.gradle`:
-
-```groovy
-repositories {
-    maven {
-        url = uri("https://maven.repo.figchain.io/releases")
-    }
-}
-```
-
-Add the dependency:
-
-```groovy
-implementation 'io.figchain:figchain-client:1.3.0'
-```
+Gradle: add `maven { url = uri("https://jitpack.io") }` to `repositories` and
+`implementation "com.github.figchain.java-client:figchain-client:${figchainVersion}"`.
 
 ## Quick Start
 
@@ -93,7 +72,7 @@ schemas during the build, fetching them from the FigChain API or from your S3 ba
 
 ```xml
 <plugin>
-    <groupId>io.figchain</groupId>
+    <groupId>com.github.figchain.java-client</groupId>
     <artifactId>figchain-maven-plugin</artifactId>
     <version>${figchain.version}</version>
     <executions>
@@ -110,7 +89,7 @@ schemas during the build, fetching them from the FigChain API or from your S3 ba
 </plugin>
 ```
 
-Set `FIGCHAIN_URL` and `FIGCHAIN_CLIENT_SECRET` in the build environment. See
+Add JitPack under `<pluginRepositories>` too. Set `FIGCHAIN_URL` and `FIGCHAIN_CLIENT_SECRET` in the build environment. See
 [Generating Java Models](https://docs.figchain.io/clients/java-models/) for the S3 source and all
 options.
 
