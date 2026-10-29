@@ -162,6 +162,10 @@ class GenerateMojoTest {
         try (URLClassLoader loader = new URLClassLoader(new URL[] {classes.toUri().toURL()}, getClass().getClassLoader())) {
             // Avro resolves specific record classes through the context class loader
             Thread.currentThread().setContextClassLoader(loader);
+            // Avro 1.12 only instantiates trusted classes; trust the ones this test generated
+            org.apache.avro.util.ClassSecurityValidator.ClassSecurityPredicate previousTrust =
+                    org.apache.avro.util.ClassSecurityValidator.getGlobal();
+            org.apache.avro.util.ClassSecurityValidator.setGlobal(c -> c.getClassLoader() == loader || previousTrust.isTrusted(c));
             Class<?> addressClass = loader.loadClass("io.figchain.schema.shopaddress.Address");
             Class<?> customerClass = loader.loadClass("com.acme.Customer");
             Object address = addressClass.getConstructor(String.class).newInstance("Lisbon");
@@ -174,6 +178,7 @@ class GenerateMojoTest {
             assertEquals("Lisbon", addressClass.getMethod("getCity").invoke(home));
         } finally {
             Thread.currentThread().setContextClassLoader(previous);
+            org.apache.avro.util.ClassSecurityValidator.setGlobal(org.apache.avro.util.ClassSecurityValidator.DEFAULT);
         }
     }
 

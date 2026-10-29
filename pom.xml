@@ -53,7 +53,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <avro.version>1.12.1</avro.version>
+        <avro.version>1.12.2</avro.version>
         <slf4j.version>2.0.17</slf4j.version>
         <logback.version>1.5.24</logback.version>
         <jackson.version>2.22.2</jackson.version>
