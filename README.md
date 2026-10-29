@@ -86,6 +86,34 @@ GeneratedConfigModel configValue = client.getEvaluatedFig("your-fig-key", contex
 client.shutdown();
 ```
 
+## Generating Models
+
+Fig values are Avro records. The `figchain-maven-plugin` module generates Java classes for your
+schemas during the build, fetching them from the FigChain API or from your S3 backup:
+
+```xml
+<plugin>
+    <groupId>io.figchain</groupId>
+    <artifactId>figchain-maven-plugin</artifactId>
+    <version>${figchain.version}</version>
+    <executions>
+        <execution>
+            <goals><goal>generate</goal></goals>
+        </execution>
+    </executions>
+    <configuration>
+        <stringType>String</stringType>
+        <schemas>
+            <schema>payments/checkout-settings/3</schema>
+        </schemas>
+    </configuration>
+</plugin>
+```
+
+Set `FIGCHAIN_URL` and `FIGCHAIN_CLIENT_SECRET` in the build environment. See
+[Generating Java Models](https://docs.figchain.io/clients/java-models/) for the S3 source and all
+options.
+
 ## Documentation
 
 For detailed usage instructions, see the [Client Documentation](https://docs.figchain.io/clients/java).
