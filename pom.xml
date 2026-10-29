@@ -46,6 +46,7 @@
     <modules>
         <module>figchain-models</module>
         <module>figchain-client</module>
+        <module>figchain-maven-plugin</module>
     </modules>
 
     <properties>
