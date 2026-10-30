@@ -1,0 +1,8 @@
+# JitPack builds the published tag on demand; the client targets Java 21.
+# $VERSION is the tag, so the poms and plugin descriptor match the coordinates users ask for.
+jdk:
+  - openjdk21
+before_install:
+  - ./mvnw -B -ntp versions:set -DnewVersion=$VERSION -DgenerateBackupPoms=false
+install:
+  - ./mvnw -B -ntp install -DskipTests
