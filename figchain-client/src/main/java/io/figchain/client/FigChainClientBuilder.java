@@ -587,7 +587,8 @@ public class FigChainClientBuilder {
             s3Config.setS3BackupEndpoint(s3BackupEndpoint);
             s3Config.setS3BackupPathStyleAccess(s3BackupPathStyleAccess);
 
-            String s3Key = (authPrivateKey != null) ? authPrivateKey : encryptionPrivateKey;
+            // Backups are encrypted to the X25519 encryption key; the auth key is only a fallback
+            String s3Key = (encryptionPrivateKey != null) ? encryptionPrivateKey : authPrivateKey;
             S3BackupService s3Service = new S3BackupService(s3Config, S3BackupService.backupObjectMapper(), s3Key);
             S3BackupBootstrapStrategy s3Strategy = new S3BackupBootstrapStrategy(s3Service);
 
