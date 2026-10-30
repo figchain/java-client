@@ -50,6 +50,6 @@ public class S3BackupBootstrapStrategy implements BootstrapStrategy {
 
         log.info("Loaded {} items from Vault. SyncToken: {}", items != null ? items.size() : 0, syncToken);
 
-        return new BootstrapResult(items, cursors);
+        return new BootstrapResult(items, cursors, payload.getSchemas());
     }
 }

@@ -60,16 +60,57 @@ public class S3BackupService {
             throw new IOException("Failed to parse backup file");
         }
 
+        return decrypt(backup, privateKeyBytes, objectMapper);
+    }
+
+    /**
+     * Mapper able to read backup payloads: they contain {@code java.time} values, and fields
+     * newer servers add are ignored rather than failing older clients.
+     */
+    public static ObjectMapper backupObjectMapper() {
+        return new ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
+
+    /**
+     * Decrypts a parsed backup file with the tenant's private key. Accepts format v2 and v3; for
+     * v3 the public section is authenticated, so a modified backup fails to decrypt.
+     */
+    static BackupPayload decrypt(BackupFile backup, byte[] privateKeyBytes, ObjectMapper objectMapper) throws IOException {
+        String publicData = switch (backup.getVersion() == null ? "" : backup.getVersion()) {
+            case "v2" -> null;
+            case "v3" -> {
+                if (backup.getPublicData() == null) {
+                    throw new IOException("v3 backup is missing its publicData section");
+                }
+                yield backup.getPublicData();
+            }
+            default -> throw new IOException("Unsupported backup format version: " + backup.getVersion());
+        };
+
         // 4. Decrypt AES Key
         log.debug("Decrypting AES key...");
         byte[] aesKey = BackupCrypto.decryptAesKey(backup.getEncryptedKey(), privateKeyBytes);
 
         // 5. Decrypt Data
         log.debug("Decrypting payload...");
-        String jsonPayload = BackupCrypto.decryptData(backup.getEncryptedData(), aesKey);
+        String jsonPayload = BackupCrypto.decryptData(backup.getEncryptedData(), aesKey, publicData);
 
         // 6. Parse Payload
         log.debug("Parsing payload...");
-        return objectMapper.readValue(jsonPayload, BackupPayload.class);
+        BackupPayload payload = objectMapper.readValue(jsonPayload, BackupPayload.class);
+        if (publicData != null) {
+            // v3 public section carries {schemas: {uri: {content: base64}}}; it is authenticated above
+            com.fasterxml.jackson.databind.JsonNode schemas = objectMapper.readTree(publicData).path("schemas");
+            schemas.fields().forEachRemaining(e -> {
+                String content = e.getValue().path("content").asText(null);
+                if (content != null && !content.isEmpty()) {
+                    payload.getSchemas().putIfAbsent(e.getKey(), new String(
+                            java.util.Base64.getDecoder().decode(content), java.nio.charset.StandardCharsets.UTF_8));
+                }
+            });
+        }
+        return payload;
     }
 }

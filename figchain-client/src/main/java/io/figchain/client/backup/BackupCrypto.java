@@ -34,8 +34,18 @@ public class BackupCrypto {
      * @return Decrypted content as UTF-8 String
      */
     public static String decryptData(String encryptedDataBase64, byte[] aesKey) {
+        return decryptData(encryptedDataBase64, aesKey, null);
+    }
+
+    /**
+     * Decrypts a backup's private section. For v3 backups, {@code publicData} is the backup's
+     * public section exactly as stored; it is authenticated as AES-GCM AAD, so any change to it
+     * makes decryption fail.
+     */
+    public static String decryptData(String encryptedDataBase64, byte[] aesKey, String publicData) {
+        byte[] aad = publicData != null ? publicData.getBytes(StandardCharsets.UTF_8) : null;
         byte[] encryptedBytes = Base64.getDecoder().decode(encryptedDataBase64);
-        byte[] decryptedBytes = EncryptionService.decryptAesGcm(encryptedBytes, aesKey);
+        byte[] decryptedBytes = EncryptionService.decryptAesGcm(encryptedBytes, aesKey, aad);
         return new String(decryptedBytes, StandardCharsets.UTF_8);
     }
 

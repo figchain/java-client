@@ -17,6 +17,8 @@ public class HybridS3BackupFirstStrategy implements BootstrapStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(HybridS3BackupFirstStrategy.class);
 
+    static final int MAX_CATCH_UP_PAGES = 1000;
+
     private final BootstrapStrategy vaultStrategy;
     private final BootstrapStrategy serverStrategy;
     private final FcClientTransport transport;
@@ -35,6 +37,11 @@ public class HybridS3BackupFirstStrategy implements BootstrapStrategy {
         List<FigFamily> allFamilies = new ArrayList<>();
         if (vaultResult.getFigFamilies() != null) {
             allFamilies.addAll(vaultResult.getFigFamilies());
+        }
+
+        Map<String, String> schemas = new HashMap<>();
+        if (vaultResult.getSchemas() != null) {
+            schemas.putAll(vaultResult.getSchemas());
         }
 
         Map<String, String> finalCursors = new HashMap<>();
@@ -61,6 +68,9 @@ public class HybridS3BackupFirstStrategy implements BootstrapStrategy {
                 if (serverResult.getCursors() != null) {
                     finalCursors.putAll(serverResult.getCursors());
                 }
+                if (serverResult.getSchemas() != null) {
+                    schemas.putAll(serverResult.getSchemas());
+                }
             } catch (Exception serverEx) {
                 log.error("Initial fetch for new namespaces {} failed.", missingNamespaces, serverEx);
                 // Log failure but proceed; partial success is better than total failure. Other namespaces from Vault are still valid.
@@ -81,12 +91,21 @@ public class HybridS3BackupFirstStrategy implements BootstrapStrategy {
                 if (cursor != null) {
                     try {
                         log.debug("Fetching updates for namespace {} from cursor {}", namespace, cursor);
-                        UpdateFetchResponse response = transport.fetchUpdates(namespace, cursor);
-                        if (response.getFigFamilies() != null) {
-                            allFamilies.addAll(response.getFigFamilies());
-                        }
-                        if (response.getCursor() != null) {
-                            finalCursors.put(namespace, response.getCursor().toString());
+                        // The server returns changes a page at a time; follow the cursor until it stops advancing.
+                        for (int page = 0; page < MAX_CATCH_UP_PAGES; page++) {
+                            UpdateFetchResponse response = transport.fetchUpdates(namespace, cursor);
+                            if (response.getFigFamilies() != null) {
+                                allFamilies.addAll(response.getFigFamilies());
+                            }
+                            String next = response.getCursor() == null ? null : response.getCursor().toString();
+                            if (next == null || next.equals(cursor)) {
+                                break;
+                            }
+                            cursor = next;
+                            finalCursors.put(namespace, cursor);
+                            if (response.getFigFamilies() == null || response.getFigFamilies().isEmpty()) {
+                                break;
+                            }
                         }
                     } catch (Exception e) {
                         log.warn("Failed to catch up for namespace {}. Proceeding with Vault data.", namespace, e);
@@ -96,6 +115,6 @@ public class HybridS3BackupFirstStrategy implements BootstrapStrategy {
             }
         }
 
-        return new BootstrapResult(allFamilies, finalCursors);
+        return new BootstrapResult(allFamilies, finalCursors, schemas);
     }
 }

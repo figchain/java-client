@@ -204,6 +204,14 @@ public class EncryptionService {
     }
 
     public static byte[] decryptAesGcm(byte[] encryptedBytes, byte[] key) {
+        return decryptAesGcm(encryptedBytes, key, null);
+    }
+
+    /**
+     * Decrypts IV(12) || ciphertext with AES-GCM, authenticating {@code aad} as additional data.
+     * Fails if the AAD differs from what was used at encryption time.
+     */
+    public static byte[] decryptAesGcm(byte[] encryptedBytes, byte[] key, byte[] aad) {
         try {
             if (encryptedBytes.length < IV_LENGTH_BYTES) {
                 throw new IllegalArgumentException("Encrypted data too short");
@@ -221,6 +229,9 @@ public class EncryptionService {
             SecretKeySpec keySpec = new SecretKeySpec(key, AES_ALGORITHM);
 
             cipher.init(Cipher.DECRYPT_MODE, keySpec, spec);
+            if (aad != null) {
+                cipher.updateAAD(aad);
+            }
             return cipher.doFinal(ciphertext);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to decrypt AES GCM", e);

@@ -9,6 +9,8 @@ public class BackupFile {
     private String keyFingerprint;
     private String encryptedKey;
     private String encryptedData;
+    // v3: plain-text section (JSON string); its exact bytes are authenticated by encryptedData
+    private String publicData;
 
     public String getVersion() {
         return version;
@@ -40,5 +42,13 @@ public class BackupFile {
 
     public void setEncryptedData(String encryptedData) {
         this.encryptedData = encryptedData;
+    }
+
+    public String getPublicData() {
+        return publicData;
+    }
+
+    public void setPublicData(String publicData) {
+        this.publicData = publicData;
     }
 }

@@ -14,6 +14,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.Collections;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import java.util.Set;
@@ -100,6 +101,23 @@ public class BootstrapStrategyTest {
         verify(vaultService, times(1)).loadBackup();
         verify(transport, times(1)).fetchUpdates(eq("test-ns"), eq("vault-cursor"));
         verify(serverStrategy, never()).bootstrap(anySet());
+    }
+
+    @Test
+    public void testHybridStrategy_CatchUpPagesUntilCursorStops() throws Exception {
+        BootstrapStrategy vault = mock(BootstrapStrategy.class);
+        when(vault.bootstrap(namespaces)).thenReturn(new BootstrapResult(new ArrayList<>(), new HashMap<>(Map.of("test-ns", "c0"))));
+        io.figchain.avro.model.FigFamily f1 = mock(io.figchain.avro.model.FigFamily.class);
+        io.figchain.avro.model.FigFamily f2 = mock(io.figchain.avro.model.FigFamily.class);
+        when(transport.fetchUpdates("test-ns", "c0")).thenReturn(UpdateFetchResponse.newBuilder().setCursor("c1").setFigFamilies(List.of(f1)).build());
+        when(transport.fetchUpdates("test-ns", "c1")).thenReturn(UpdateFetchResponse.newBuilder().setCursor("c2").setFigFamilies(List.of(f2)).build());
+        when(transport.fetchUpdates("test-ns", "c2")).thenReturn(UpdateFetchResponse.newBuilder().setCursor("c2").setFigFamilies(List.of()).build());
+
+        BootstrapResult result = new HybridS3BackupFirstStrategy(vault, mock(BootstrapStrategy.class), transport).bootstrap(namespaces);
+
+        assertEquals(List.of(f1, f2), result.getFigFamilies());
+        assertEquals("c2", result.getCursors().get("test-ns"));
+        verify(transport, times(3)).fetchUpdates(eq("test-ns"), any());
     }
 
     @Test
