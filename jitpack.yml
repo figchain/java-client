@@ -1,8 +1,10 @@
 # JitPack builds the published tag on demand; the client targets Java 21.
-# $VERSION is the tag, so the poms and plugin descriptor match the coordinates users ask for.
+# The build is rewritten to the coordinates JitPack serves (com.github.figchain.java-client:<module>:<tag>):
+# Maven rejects a plugin whose descriptor names a different groupId or version than the one requested.
 jdk:
   - openjdk21
 before_install:
+  - sed -i 's|<groupId>io.figchain</groupId>|<groupId>com.github.figchain.java-client</groupId>|' pom.xml figchain-*/pom.xml
   - ./mvnw -B -ntp versions:set -DnewVersion=$VERSION -DgenerateBackupPoms=false
 install:
   - ./mvnw -B -ntp install -DskipTests
