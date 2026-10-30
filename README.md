@@ -29,12 +29,12 @@ Releases are built from GitHub tags by [JitPack](https://jitpack.io). Use a rele
 <dependency>
     <groupId>com.github.figchain.java-client</groupId>
     <artifactId>figchain-client</artifactId>
-    <version>${figchain.version}</version>
+    <version>v1.4.0</version>
 </dependency>
 ```
 
 Gradle: add `maven { url = uri("https://jitpack.io") }` to `repositories` and
-`implementation "com.github.figchain.java-client:figchain-client:${figchainVersion}"`.
+`implementation "com.github.figchain.java-client:figchain-client:v1.4.0"`.
 
 ## Quick Start
 
@@ -74,7 +74,7 @@ schemas during the build, fetching them from the FigChain API or from your S3 ba
 <plugin>
     <groupId>com.github.figchain.java-client</groupId>
     <artifactId>figchain-maven-plugin</artifactId>
-    <version>${figchain.version}</version>
+    <version>v1.4.0</version>
     <executions>
         <execution>
             <goals><goal>generate</goal></goals>
