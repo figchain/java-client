@@ -184,17 +184,4 @@
         </plugins>
     </build>
 
-    <distributionManagement>
-        <repository>
-            <id>figchain-public</id>
-            <name>FigChain Public Repository</name>
-            <url>https://maven.repo.figchain.io/releases</url>
-        </repository>
-        <snapshotRepository>
-            <id>figchain-public</id>
-            <name>FigChain Public Repository</name>
-            <url>https://maven.repo.figchain.io/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
-
 </project>

@@ -1,3 +1,6 @@
+# Releases are distributed through JitPack, which builds the published tag on demand
+# (com.github.figchain.java-client:<module>:<tag>). This workflow verifies the build,
+# attaches the jars to the GitHub release and bumps main to the next snapshot.
 name: Publish Release
 
 on:
@@ -36,27 +39,13 @@ jobs:
       - name: Build and test
         run: mvn clean verify
 
-      - name: Publish to FigChain Maven Repository
-        run: |
-          cat > ~/.m2/settings.xml << EOF
-          <settings>
-            <servers>
-              <server>
-                <id>figchain-public</id>
-                <username>fc-deploy</username>
-                <password>${{ secrets.MAVEN_REPO_TOKEN }}</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
-          mvn deploy -DskipTests
-
       - name: Upload artifacts to release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             figchain-client/target/figchain-client-*.jar
             figchain-models/target/figchain-models-*.jar
+            figchain-maven-plugin/target/figchain-maven-plugin-*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -72,11 +61,9 @@ jobs:
           git checkout main
           VERSION=${{ steps.get_version.outputs.VERSION }}
           
-          # Update Maven dependency version (first occurrence only to avoid affecting other XML)
-          sed -i "0,/<version>.*<\/version>/s//<version>$VERSION<\/version>/" README.md
-          
-          # Update Gradle dependency version
-          sed -i "s/implementation 'io.figchain:figchain-client:.*'/implementation 'io.figchain:figchain-client:$VERSION'/" README.md
+          # README install snippets use the JitPack version, which is the tag (vX.Y.Z)
+          sed -i "s/<version>\\\${figchain.version}<\/version>/<version>v$VERSION<\/version>/" README.md
+          sed -i "s/\\\${figchainVersion}/v$VERSION/" README.md
           
           # Calculate next snapshot version
           # Assumes semantic versioning X.Y.Z
