@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Java runner for the cross-client e2e suite (figchain-clients/e2e/run.py). Not a module of the
+  client build: it generates its model classes from the suite's freshly created tenant, so it can
+  only be built once that tenant exists. run.sh builds and runs it.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.figchain</groupId>
+    <artifactId>figchain-e2e-runner</artifactId>
+    <version>1.3.1-SNAPSHOT</version>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>21</maven.compiler.release>
+        <figchain.version>1.3.1-SNAPSHOT</figchain.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.figchain</groupId>
+            <artifactId>figchain-client</artifactId>
+            <version>${figchain.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.13</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.figchain</groupId>
+                <artifactId>figchain-maven-plugin</artifactId>
+                <version>${figchain.version}</version>
+                <executions>
+                    <execution>
+                        <goals><goal>generate</goal></goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <stringType>String</stringType>
+                    <schemas>
+                        <schema>shop/checkout-settings/1</schema>
+                    </schemas>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
