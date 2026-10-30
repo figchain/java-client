@@ -32,6 +32,41 @@ class BackupV3Test {
     }
 
     @Test
+    void registersSchemasFromPublicSection() throws IOException {
+        BackupPayload payload = S3BackupService.decrypt(load(), PRIVATE_KEY, mapper);
+        assertTrue(payload.getSchemas().get("tag:figchain.io,2025:shop:address:1").contains("\"Address\""));
+    }
+
+    @Test
+    void mapsServerLatestFigItemsToFigFamilies() throws IOException {
+        String json = """
+            {"syncToken":"t","items":[{"definition":{"namespace":"shop","key":"checkout",
+              "figId":"982daf00-03e2-5070-b257-01c4a682cbe9","schemaUri":"tag:x:1","schemaVersion":"1",
+              "createdAt":"2026-10-30T01:44:45.408Z","updatedAt":"2026-10-30T01:44:45.408Z"},
+             "latestFig":{"figId":"982daf00-03e2-5070-b257-01c4a682cbe9","version":"01a18a7b-4734-7bee-a13e-baf6aecb9245",
+              "encrypted":false,"encryptionAlgorithm":null,"keyId":null,"wrappedDek":null,
+              "payload":{"data":{"binaryData":"BlVTRCg="},
+                "schema":{"content":"eyJ0eXBlIjoicmVjb3JkIn0=","uri":"tag:x:1"}}}}]}
+            """;
+        BackupPayload payload = mapper.readValue(json, BackupPayload.class);
+        io.figchain.avro.model.FigFamily family = payload.getItems().get(0);
+        assertEquals(1, family.getFigs().size());
+        io.figchain.avro.model.Fig fig = family.getFigs().get(0);
+        assertEquals(java.util.UUID.fromString("01a18a7b-4734-7bee-a13e-baf6aecb9245"), fig.getVersion());
+        assertEquals(fig.getVersion(), family.getDefaultVersion());
+        assertArrayEquals(java.util.Base64.getDecoder().decode("BlVTRCg="), toBytes(fig.getPayload()));
+        assertFalse(fig.getIsEncrypted());
+        assertNotNull(family.getRules());
+        assertEquals("{\"type\":\"record\"}", payload.getSchemas().get("tag:x:1"));
+    }
+
+    private static byte[] toBytes(java.nio.ByteBuffer b) {
+        byte[] out = new byte[b.remaining()];
+        b.duplicate().get(out);
+        return out;
+    }
+
+    @Test
     void tamperedPublicSectionFailsDecryption() throws IOException {
         BackupFile backup = load();
         backup.setPublicData(backup.getPublicData() + " ");

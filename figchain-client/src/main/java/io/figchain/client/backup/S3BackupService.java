@@ -99,6 +99,18 @@ public class S3BackupService {
 
         // 6. Parse Payload
         log.debug("Parsing payload...");
-        return objectMapper.readValue(jsonPayload, BackupPayload.class);
+        BackupPayload payload = objectMapper.readValue(jsonPayload, BackupPayload.class);
+        if (publicData != null) {
+            // v3 public section carries {schemas: {uri: {content: base64}}}; it is authenticated above
+            com.fasterxml.jackson.databind.JsonNode schemas = objectMapper.readTree(publicData).path("schemas");
+            schemas.fields().forEachRemaining(e -> {
+                String content = e.getValue().path("content").asText(null);
+                if (content != null && !content.isEmpty()) {
+                    payload.getSchemas().putIfAbsent(e.getKey(), new String(
+                            java.util.Base64.getDecoder().decode(content), java.nio.charset.StandardCharsets.UTF_8));
+                }
+            });
+        }
+        return payload;
     }
 }
